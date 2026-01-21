@@ -1,3 +1,4 @@
+from fastapi import UploadFile, File
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import Response
@@ -119,6 +120,49 @@ def get_drivers(current_user: models.User = Depends(get_current_user), db: Sessi
     drivers = db.query(models.User).options(joinedload(models.User.car)).filter(models.User.role == models.UserRole.DRIVER).all()
     return drivers
 
+@router.put("/trips/{trip_id}", response_model=schemas.Trip)
+def update_trip(trip_id: int, trip_update: schemas.TripUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
+    check_admin(current_user)
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    if trip_update.driver_id is not None:
+        trip.driver_id = trip_update.driver_id
+    if trip_update.status is not None:
+        trip.status = trip_update.status
+    if trip_update.start_date is not None:
+        trip.start_date = trip_update.start_date
+        
+    if trip_update.logs:
+        for log_update in trip_update.logs:
+            log = db.query(models.TripLog).filter(models.TripLog.id == log_update.id, models.TripLog.trip_id == trip_id).first()
+            if log:
+                if log_update.timestamp is not None:
+                    log.timestamp = log_update.timestamp
+                if log_update.address is not None:
+                    log.address = log_update.address
+                if log_update.state is not None:
+                    log.state = log_update.state
+
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+@router.delete("/trips/{trip_id}")
+def delete_trip(trip_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
+    check_admin(current_user)
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    
+    # Manually delete logs first to be safe (cascade might not be set in DB)
+    db.query(models.TripLog).filter(models.TripLog.trip_id == trip_id).delete()
+    
+    db.delete(trip)
+    db.commit()
+    return {"message": "Trip deleted successfully"}
+
 @router.get("/export")
 def export_trips(driver_id: Optional[int] = None, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     check_admin(current_user)
@@ -134,10 +178,19 @@ def export_trips(driver_id: Optional[int] = None, current_user: models.User = De
     data = []
     for trip in trips:
         logs = sorted(trip.logs, key=lambda x: x.timestamp)
-        def get_logs_str(state):
+        
+        def get_log_parts(state):
             relevant = [l for l in logs if l.state == state]
-            if not relevant: return ""
-            return " | ".join([f"{l.address or 'N/A'} ({l.timestamp.strftime('%Y-%m-%d %H:%M')})" for l in relevant])
+            if not relevant: return "", ""
+            # Join multiple entries if they exist (e.g. multiple warehouses)
+            times = " | ".join([l.timestamp.strftime('%Y-%m-%d %H:%M') for l in relevant])
+            locs = " | ".join([l.address or 'N/A' for l in relevant])
+            return times, locs
+
+        ef_time, ef_loc = get_log_parts(models.TripState.EXIT_FACTORY)
+        aw_time, aw_loc = get_log_parts(models.TripState.ARRIVE_WAREHOUSE)
+        ew_time, ew_loc = get_log_parts(models.TripState.EXIT_WAREHOUSE)
+        af_time, af_loc = get_log_parts(models.TripState.ARRIVE_FACTORY)
 
         row = {
             "Trip ID": trip.id,
@@ -145,10 +198,14 @@ def export_trips(driver_id: Optional[int] = None, current_user: models.User = De
             "Car Plate": trip.driver.car.plate if trip.driver and trip.driver.car else "N/A",
             "Start Date": trip.start_date.strftime("%Y-%m-%d %H:%M") if trip.start_date else "",
             "Status": trip.status.value,
-            "Exit Factory": get_logs_str(models.TripState.exit_factory),
-            "Arrive Warehouse": get_logs_str(models.TripState.arrive_warehouse),
-            "Exit Warehouse": get_logs_str(models.TripState.exit_warehouse),
-            "Arrive Factory": get_logs_str(models.TripState.arrive_factory),
+            "Exit Factory Time": ef_time,
+            "Exit Factory Location": ef_loc,
+            "Arrive Warehouse Time": aw_time,
+            "Arrive Warehouse Location": aw_loc,
+            "Exit Warehouse Time": ew_time,
+            "Exit Warehouse Location": ew_loc,
+            "Arrive Factory Time": af_time,
+            "Arrive Factory Location": af_loc,
         }
         data.append(row)
 
@@ -177,3 +234,33 @@ def export_trips(driver_id: Optional[int] = None, current_user: models.User = De
         'Content-Disposition': f'attachment; filename="{filename}"'
     }
     return Response(content=output.getvalue(), media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers=headers)
+
+@router.get("/settings")
+def get_settings(db: Session = Depends(database.get_db)):
+    # Public endpoint for branding
+    settings = db.query(models.SystemSetting).all()
+    return {s.key: s.value for s in settings}
+
+@router.put("/settings")
+def update_settings(settings: dict, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
+    check_admin(current_user)
+    for key, value in settings.items():
+        setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+        if setting:
+            setting.value = value
+        else:
+            db.add(models.SystemSetting(key=key, value=value))
+    db.commit()
+    return {"message": "Settings updated"}
+
+@router.post("/upload-logo")
+def upload_logo(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
+    check_admin(current_user)
+    import shutil
+    import os
+    
+    file_location = f"app/static/logo.png"
+    with open(file_location, "wb+") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"url": "/static/logo.png"}

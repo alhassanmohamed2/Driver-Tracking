@@ -28,6 +28,13 @@ app.include_router(auth.router)
 app.include_router(trips.router)
 app.include_router(admin.router)
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Ensure static directory exists
+os.makedirs("app/static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 @app.get("/")
 def read_root():
     return {"message": "Driver Tracker API is running"}

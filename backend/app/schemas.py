@@ -89,6 +89,18 @@ class Trip(TripBase):
     class Config:
         orm_mode = True
 
+class TripLogUpdate(BaseModel):
+    id: int
+    timestamp: Optional[datetime] = None
+    address: Optional[str] = None
+    state: Optional[TripState] = None
+
+class TripUpdate(BaseModel):
+    driver_id: Optional[int] = None
+    status: Optional[TripStatus] = None
+    start_date: Optional[datetime] = None
+    logs: Optional[List[TripLogUpdate]] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str

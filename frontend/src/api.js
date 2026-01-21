@@ -70,6 +70,16 @@ export const getTrips = async () => {
     return response.data;
 };
 
+export const deleteTrip = async (tripId) => {
+    const response = await api.delete(`/admin/trips/${tripId}`);
+    return response.data;
+};
+
+export const updateTrip = async (tripId, data) => {
+    const response = await api.put(`/admin/trips/${tripId}`, data);
+    return response.data;
+};
+
 export const createDriver = async (username, password, carId) => {
     const response = await api.post('/admin/drivers', {
         username,
@@ -117,39 +127,25 @@ export const getDrivers = async () => {
     return response.data;
 };
 
-export const exportTrips = (driverId = null) => {
-    // Generate the URL for the export
-    const token = localStorage.getItem('token')
-    const url = driverId ? `${API_URL}/admin/export?driver_id=${driverId}` : `${API_URL}/admin/export`;
+export const exportTrips = async (driverId = null) => {
+    try {
+        const url = driverId ? `/admin/export?driver_id=${driverId}` : '/admin/export';
+        const response = await api.get(url, {
+            responseType: 'blob'
+        });
 
-    fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-        .then(response => {
-            // Extract filename from header if possible
-            const disposition = response.headers.get('Content-Disposition');
-            let filename = 'trips_export.xlsx';
-            if (disposition && disposition.indexOf('attachment') !== -1) {
-                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                const matches = filenameRegex.exec(disposition);
-                if (matches != null && matches[1]) {
-                    filename = matches[1].replace(/['"]/g, '');
-                }
-            }
-            return response.blob().then(blob => ({ blob, filename }));
-        })
-        .then(({ blob, filename }) => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        })
-        .catch(error => console.error(error))
+        // Create blob link to download
+        const urlBlob = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = urlBlob;
+        link.setAttribute('download', 'trips_export.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch (error) {
+        console.error('Export failed:', error);
+        alert('Failed to export trips. Please try again.');
+    }
 };
 
 export const getDriverHistory = async (month = null, year = null) => {
@@ -157,6 +153,25 @@ export const getDriverHistory = async (month = null, year = null) => {
     if (month) params.month = month;
     if (year) params.year = year;
     const response = await api.get('/trips/history', { params });
+    return response.data;
+};
+
+export const getSettings = async () => {
+    const response = await api.get('/admin/settings');
+    return response.data;
+};
+
+export const updateSettings = async (settings) => {
+    const response = await api.put('/admin/settings', settings);
+    return response.data;
+};
+
+export const uploadLogo = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/admin/upload-logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
 };
 

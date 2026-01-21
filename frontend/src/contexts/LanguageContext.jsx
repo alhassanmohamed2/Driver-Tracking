@@ -11,17 +11,23 @@ export const LanguageProvider = ({ children }) => {
 
     // Set initial direction on mount
     useEffect(() => {
-        document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+        const isRtl = ['ar', 'ur'].includes(language);
+        document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
         document.documentElement.lang = language;
     }, []);
 
     const toggleLanguage = () => {
-        const newLang = language === 'en' ? 'ar' : 'en';
+        // Cycle: en -> ar -> ur -> hi -> en
+        const langs = ['en', 'ar', 'ur', 'hi'];
+        const currentIndex = langs.indexOf(language);
+        const newLang = langs[(currentIndex + 1) % langs.length];
+
         setLanguage(newLang);
         localStorage.setItem('driverLanguage', newLang);
 
-        // Update document direction for RTL
-        document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr';
+        // Update document direction: ar and ur are rtl, others ltr
+        const isRtl = ['ar', 'ur'].includes(newLang);
+        document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
         document.documentElement.lang = newLang;
     };
 

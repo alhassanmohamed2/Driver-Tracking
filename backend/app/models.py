@@ -80,3 +80,10 @@ class TripLog(Base):
     address = Column(String(255), nullable=True)
 
     trip = relationship("Trip", back_populates="logs")
+    trip = relationship("Trip", back_populates="logs")
+
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    key = Column(String(50), primary_key=True, index=True)
+    value = Column(String(255))

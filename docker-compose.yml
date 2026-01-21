@@ -24,6 +24,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - static_data:/app/app/static
 
   frontend:
     build: ./frontend
@@ -35,3 +37,4 @@ services:
 
 volumes:
   db_data:
+  static_data:
