@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RTL Support */
+[dir="rtl"] {
+    direction: rtl;
+}
+
+/* Ensure body follows document direction */
+body {
+    direction: inherit;
+}
+
+/* RTL-specific adjustments */
+[dir="rtl"] .space-x-2> :not([hidden])~ :not([hidden]) {
+    margin-right: 0.5rem;
+    margin-left: 0;
+}
+
+[dir="rtl"] .space-x-4> :not([hidden])~ :not([hidden]) {
+    margin-right: 1rem;
+    margin-left: 0;
+}
+
+/* Custom animation for fade-in effects */
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out;
+}
+
+.animate-fade-in-right {
+    animation: fade-in-right 0.3s ease-out;
+}
