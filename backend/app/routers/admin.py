@@ -164,14 +164,40 @@ def delete_trip(trip_id: int, current_user: models.User = Depends(get_current_us
     return {"message": "Trip deleted successfully"}
 
 @router.get("/export")
-def export_trips(driver_id: Optional[int] = None, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
+def export_trips(
+    driver_id: Optional[int] = None, 
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None, 
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(database.get_db)
+):
     check_admin(current_user)
     
     # Query trips with logs
     from sqlalchemy.orm import joinedload
     query = db.query(models.Trip).options(joinedload(models.Trip.logs), joinedload(models.Trip.driver).joinedload(models.User.car))
+    
     if driver_id:
         query = query.filter(models.Trip.driver_id == driver_id)
+    
+    from datetime import datetime
+    if start_date:
+        try:
+            # Assuming start_date comes as YYYY-MM-DD
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(models.Trip.start_date >= start_dt)
+        except ValueError:
+            pass # Ignore invalid date format
+            
+    if end_date:
+        try:
+            # Assuming end_date comes as YYYY-MM-DD
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+            # Set time to end of day
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Trip.start_date <= end_dt)
+        except ValueError:
+            pass # Ignore invalid date format
     
     trips = query.all()
 

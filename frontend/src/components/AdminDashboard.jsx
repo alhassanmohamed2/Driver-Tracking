@@ -235,7 +235,7 @@ const AdminDashboard = () => {
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
-    const handleExport = () => exportTrips(selectedDriver || null);
+    const handleExport = () => exportTrips(selectedDriver || null, dateFrom || null, dateTo || null);
 
     const handleViewDetails = (trip) => {
         setSelectedTrip(trip);

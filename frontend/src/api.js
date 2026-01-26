@@ -127,9 +127,16 @@ export const getDrivers = async () => {
     return response.data;
 };
 
-export const exportTrips = async (driverId = null) => {
+export const exportTrips = async (driverId = null, dateFrom = null, dateTo = null) => {
     try {
-        const url = driverId ? `/admin/export?driver_id=${driverId}` : '/admin/export';
+        let url = '/admin/export?';
+        const params = new URLSearchParams();
+        if (driverId) params.append('driver_id', driverId);
+        if (dateFrom) params.append('start_date', dateFrom);
+        if (dateTo) params.append('end_date', dateTo);
+
+        url += params.toString();
+
         const response = await api.get(url, {
             responseType: 'blob'
         });

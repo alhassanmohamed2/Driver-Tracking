@@ -7,16 +7,30 @@ import { jwtDecode } from 'jwt-decode';
 import { LanguageProvider } from './contexts/LanguageContext';
 
 // Protected Route Component
-const ProtectedRoute = ({ children, role }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('token');
   if (!token) return <Navigate to="/" />;
 
   try {
     const decoded = jwtDecode(token);
-    // You might want to verify role here as well in a real app
-    // For now we trust the token exists
+
+    // Check if token is expired
+    if (decoded.exp * 1000 < Date.now()) {
+      localStorage.removeItem('token');
+      return <Navigate to="/" />;
+    }
+
+    // Role-based Access Control
+    if (allowedRoles && !allowedRoles.includes(decoded.role)) {
+      // Redirect to their appropriate dashboard if they try to access unauthorized pages
+      if (decoded.role === 'admin') return <Navigate to="/admin" />;
+      if (decoded.role === 'driver') return <Navigate to="/driver" />;
+      return <Navigate to="/" />;
+    }
+
     return children;
   } catch (e) {
+    localStorage.removeItem('token');
     return <Navigate to="/" />;
   }
 };
@@ -29,7 +43,7 @@ function App() {
         <Route
           path="/driver"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['driver']}>
               <LanguageProvider>
                 <DriverDashboard />
               </LanguageProvider>
@@ -39,7 +53,7 @@ function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <AdminDashboard />
             </ProtectedRoute>
           }
