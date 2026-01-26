@@ -10,6 +10,23 @@ const Login = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
+    React.useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const decoded = jwtDecode(token);
+                if (decoded.exp * 1000 > Date.now()) {
+                    if (decoded.role === 'admin') navigate('/admin');
+                    else if (decoded.role === 'driver') navigate('/driver');
+                } else {
+                    localStorage.removeItem('token');
+                }
+            } catch (e) {
+                localStorage.removeItem('token');
+            }
+        }
+    }, [navigate]);
+
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
