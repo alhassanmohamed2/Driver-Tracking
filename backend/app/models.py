@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enu
 from sqlalchemy.orm import relationship
 from .database import Base
 import enum
-from datetime import datetime
+from .timezone import now_saudi
 
 class UserRole(str, enum.Enum):
     DRIVER = "driver"
@@ -52,7 +52,7 @@ class Trip(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     driver_id = Column(Integer, ForeignKey("users.id"))
-    start_date = Column(DateTime, default=datetime.utcnow)
+    start_date = Column(DateTime, default=now_saudi)
     status = Column(Enum(TripStatus), default=TripStatus.IN_PROGRESS)
     
     # Flattened timestamps for report
@@ -74,12 +74,11 @@ class TripLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     trip_id = Column(Integer, ForeignKey("trips.id"))
     state = Column(Enum(TripState))
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=now_saudi)
     latitude = Column(Float)
     longitude = Column(Float)
     address = Column(String(255), nullable=True)
 
-    trip = relationship("Trip", back_populates="logs")
     trip = relationship("Trip", back_populates="logs")
 
 class SystemSetting(Base):

@@ -6,6 +6,7 @@ from typing import List, Optional
 import pandas as pd
 from io import BytesIO
 from .. import database, models, schemas
+from ..timezone import ensure_saudi_naive
 from .auth import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -132,18 +133,44 @@ def update_trip(trip_id: int, trip_update: schemas.TripUpdate, current_user: mod
     if trip_update.status is not None:
         trip.status = trip_update.status
     if trip_update.start_date is not None:
-        trip.start_date = trip_update.start_date
+        trip.start_date = ensure_saudi_naive(trip_update.start_date)
         
     if trip_update.logs:
         for log_update in trip_update.logs:
             log = db.query(models.TripLog).filter(models.TripLog.id == log_update.id, models.TripLog.trip_id == trip_id).first()
             if log:
                 if log_update.timestamp is not None:
-                    log.timestamp = log_update.timestamp
+                    log.timestamp = ensure_saudi_naive(log_update.timestamp)
                 if log_update.address is not None:
                     log.address = log_update.address
                 if log_update.state is not None:
                     log.state = log_update.state
+
+        # Re-sync flattened timestamp/address columns on Trip from updated logs
+        all_logs = db.query(models.TripLog).filter(models.TripLog.trip_id == trip_id).all()
+        # Reset flattened columns
+        trip.exit_factory_time = None
+        trip.exit_factory_address = None
+        trip.arrive_warehouse_time = None
+        trip.arrive_warehouse_address = None
+        trip.exit_warehouse_time = None
+        trip.exit_warehouse_address = None
+        trip.arrive_factory_time = None
+        trip.arrive_factory_address = None
+        # Re-populate from current log data (last log of each state wins)
+        for log in all_logs:
+            if log.state == models.TripState.EXIT_FACTORY:
+                trip.exit_factory_time = log.timestamp
+                trip.exit_factory_address = log.address
+            elif log.state == models.TripState.ARRIVE_WAREHOUSE:
+                trip.arrive_warehouse_time = log.timestamp
+                trip.arrive_warehouse_address = log.address
+            elif log.state == models.TripState.EXIT_WAREHOUSE:
+                trip.exit_warehouse_time = log.timestamp
+                trip.exit_warehouse_address = log.address
+            elif log.state == models.TripState.ARRIVE_FACTORY:
+                trip.arrive_factory_time = log.timestamp
+                trip.arrive_factory_address = log.address
 
     db.commit()
     db.refresh(trip)

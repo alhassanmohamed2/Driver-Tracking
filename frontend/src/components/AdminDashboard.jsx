@@ -210,6 +210,23 @@ const AdminDashboard = () => {
         setShowTripEditForm(true);
     };
 
+    // Helper: format a naive Saudi datetime string for display
+    const formatSaudiDate = (dateStr) => {
+        if (!dateStr) return '';
+        // The backend stores naive Saudi time. Append 'Z' to force parsing as UTC
+        // so we can display it with timeZone: 'UTC' without browser offset issues.
+        const utcStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+        const d = new Date(utcStr);
+        return d.toLocaleString('en-US', { timeZone: 'UTC' });
+    };
+
+    const formatSaudiTime = (dateStr) => {
+        if (!dateStr) return '';
+        const utcStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
+        const d = new Date(utcStr);
+        return d.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
+    };
+
     const handleSaveTrip = async (e) => {
         e.preventDefault();
         setMessage('');
@@ -217,10 +234,12 @@ const AdminDashboard = () => {
             await updateTrip(editingTripId, {
                 driver_id: parseInt(tripForm.driverId),
                 status: tripForm.status,
-                start_date: tripForm.startDate ? new Date(tripForm.startDate).toISOString() : null,
+                // Send the datetime-local value directly — it's already in Saudi time
+                start_date: tripForm.startDate || null,
                 logs: tripForm.logs.map(l => ({
                     id: l.id,
-                    timestamp: l.timestamp ? new Date(l.timestamp).toISOString() : null,
+                    // Send the datetime-local value directly — already Saudi time
+                    timestamp: l.timestamp || null,
                     address: l.address
                 }))
             });
@@ -585,7 +604,7 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="p-3 bg-gray-50 rounded-lg">
                                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Start Time</span>
-                                        <span className="font-medium text-gray-800">{new Date(selectedTrip.start_date).toLocaleString()}</span>
+                                        <span className="font-medium text-gray-800">{formatSaudiDate(selectedTrip.start_date)}</span>
                                     </div>
                                     <div className="p-3 bg-gray-50 rounded-lg">
                                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Status</span>
@@ -602,7 +621,7 @@ const AdminDashboard = () => {
                                             <div key={index} className="relative">
                                                 <div className="absolute -left-[21px] top-1 w-3 h-3 rounded-full bg-blue-500 border-2 border-white"></div>
                                                 <p className="font-bold text-sm text-gray-800">{log.state}</p>
-                                                <p className="text-xs text-gray-500 mb-1">{new Date(log.timestamp).toLocaleString()}</p>
+                                                <p className="text-xs text-gray-500 mb-1">{formatSaudiDate(log.timestamp)}</p>
                                                 {log.address && <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">{log.address}</p>}
                                             </div>
                                         ))
@@ -634,7 +653,7 @@ const AdminDashboard = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{trip.id}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trip.driver ? trip.driver.username : 'Unknown'}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{trip.driver && trip.driver.car ? trip.driver.car.plate : 'N/A'}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(trip.start_date).toLocaleString()}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatSaudiDate(trip.start_date)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trip.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800 '}`}>
                                                 {trip.status === 'in_progress' ? 'Active' : 'Completed'}

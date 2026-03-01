@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 from sqlalchemy import func
-import pytz
 from .. import database, models, schemas
+from ..timezone import now_saudi
 from .auth import get_current_user
 
 router = APIRouter(prefix="/trips", tags=["trips"])
@@ -23,9 +23,7 @@ def start_trip(current_user: models.User = Depends(get_current_user), db: Sessio
     if active_trip:
         return active_trip
         
-    saudi_tz = pytz.timezone('Asia/Riyadh')
-    start_date = datetime.now(saudi_tz).replace(tzinfo=None)
-    new_trip = models.Trip(driver_id=current_user.id, start_date=start_date)
+    new_trip = models.Trip(driver_id=current_user.id, start_date=now_saudi())
     db.add(new_trip)
     db.commit()
     db.refresh(new_trip)
@@ -58,24 +56,23 @@ def add_trip_log(
     if trip.status == models.TripStatus.COMPLETED:
          raise HTTPException(status_code=400, detail="Trip is already completed")
 
-    saudi_tz = pytz.timezone('Asia/Riyadh')
-    today = datetime.now(saudi_tz).replace(tzinfo=None)
+    saudi_now = now_saudi()
     
-    new_log = models.TripLog(trip_id=trip.id, timestamp=today, **log.dict())
+    new_log = models.TripLog(trip_id=trip.id, timestamp=saudi_now, **log.dict())
     db.add(new_log)
     
     # Update flattened columns
     if log.state == models.TripState.EXIT_FACTORY:
-        trip.exit_factory_time = today
+        trip.exit_factory_time = saudi_now
         trip.exit_factory_address = log.address
     elif log.state == models.TripState.ARRIVE_WAREHOUSE:
-        trip.arrive_warehouse_time = today
+        trip.arrive_warehouse_time = saudi_now
         trip.arrive_warehouse_address = log.address
     elif log.state == models.TripState.EXIT_WAREHOUSE:
-        trip.exit_warehouse_time = today
+        trip.exit_warehouse_time = saudi_now
         trip.exit_warehouse_address = log.address
     elif log.state == models.TripState.ARRIVE_FACTORY:
-        trip.arrive_factory_time = today
+        trip.arrive_factory_time = saudi_now
         trip.arrive_factory_address = log.address
         trip.status = models.TripStatus.COMPLETED
     

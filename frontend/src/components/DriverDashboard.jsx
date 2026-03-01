@@ -314,7 +314,7 @@ const DriverDashboard = () => {
                                             <div className="pt-1">
                                                 <p className="font-bold text-gray-800 text-sm leading-tight">{t(log.state) || log.state}</p>
                                                 <div className="flex flex-col gap-0.5 mt-1">
-                                                    <span className="text-xs text-gray-500 font-mono">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span className="text-xs text-gray-500 font-mono">{new Date(log.timestamp.endsWith('Z') ? log.timestamp : log.timestamp + 'Z').toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })}</span>
                                                     <span className="text-xs text-gray-400 italic leading-snug max-w-[200px] truncate">{log.address ? log.address.split(',')[0] : t('pinnedLocation')}</span>
                                                 </div>
                                             </div>

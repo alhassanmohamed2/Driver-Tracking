@@ -103,7 +103,7 @@ const DriverHistory = () => {
                         const isExpanded = expandedTrip === trip.id;
                         const duration = calculateDuration(trip);
                         const warehouseCount = countWarehouses(trip);
-                        const tripDate = new Date(trip.start_date);
+                        const tripDate = new Date(trip.start_date.endsWith('Z') ? trip.start_date : trip.start_date + 'Z');
 
                         return (
                             <div key={trip.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition hover:shadow-md">
@@ -116,7 +116,7 @@ const DriverHistory = () => {
                                                 <h3 className="font-bold text-gray-800">{t('trip')} #{trip.id}</h3>
                                             </div>
                                             <p className="text-sm text-gray-600 mt-1">
-                                                {tripDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                {tripDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' })}
                                             </p>
                                         </div>
                                         <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
@@ -162,8 +162,8 @@ const DriverHistory = () => {
                                         <h4 className="font-bold text-gray-700 text-sm mb-3">{t('timeline')}</h4>
                                         <div className="space-y-3">
                                             {trip.logs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map((log, idx) => {
-                                                const logDate = new Date(log.timestamp);
-                                                const time = logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                                const logDate = new Date(log.timestamp.endsWith('Z') ? log.timestamp : log.timestamp + 'Z');
+                                                const time = logDate.toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
                                                 const icon = log.state.includes('Factory') ? <Truck size={14} /> : <MapPin size={14} />;
 
                                                 // Check if date changed from previous log
@@ -183,7 +183,7 @@ const DriverHistory = () => {
                                                                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-mono">
                                                                     {showDate && (
                                                                         <span className="font-semibold">
-                                                                            {logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} •{' '}
+                                                                            {logDate.toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' })} •{' '}
                                                                         </span>
                                                                     )}
                                                                     {time}
