@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: rootpassword
       TZ: Asia/Riyadh
     volumes:
-      - db_data:/var/lib/mysql
+      - db_data_dev:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
       timeout: 20s
@@ -19,7 +19,7 @@ services:
     build: ./backend
     restart: always
     ports:
-      - "8002:8000"
+      - "8003:8000"
     environment:
       DATABASE_URL: mysql+mysqlconnector://user:password@db/trips_db
       TZ: Asia/Riyadh
@@ -27,16 +27,16 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - static_data:/app/app/static
+      - static_data_dev:/app/app/static
 
   frontend:
     build: ./frontend
     restart: always
     ports:
-      - "8547:80"
+      - "8548:80"
     depends_on:
       - backend
 
 volumes:
-  db_data:
-  static_data:
+  db_data_dev:
+  static_data_dev:
