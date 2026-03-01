@@ -38,6 +38,6 @@ def ensure_saudi_naive(dt: Optional[datetime]) -> Optional[datetime]:
         saudi_dt = dt.astimezone(SAUDI_TZ)
         return saudi_dt.replace(tzinfo=None)
     else:
-        # Naive datetime: assumed to already be Saudi time
-        # (comes from datetime-local input which gives local values)
-        return dt
+        # If the datetime is already naive, do not cast or convert it.
+        # Just strip any implicit tzinfo Pydantic might internally attach to local tz
+        return dt.replace(tzinfo=None)
