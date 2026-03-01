@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<body>
+<input type="datetime-local" id="dt1" value="">
+<input type="datetime-local" id="dt2" value="">
+<script>
+    // Simulate what the React state receives from backend:
+    let backendVal = "2026-03-01T20:30:00Z"; 
+    
+    // How React sets it when editing:
+    // trip.logs ? trip.logs.map(l => ({ ... timestamp: l.timestamp }))
+    // Then inside the map function:
+    // value={log.timestamp ? log.timestamp.slice(0, 16) : ''}
+    
+    document.getElementById('dt1').value = backendVal.slice(0, 16);
+    console.log("dt1 value with Z sliced:", document.getElementById('dt1').value);
+
+    let backendValNoZ = "2026-03-01T20:30:00";
+    document.getElementById('dt2').value = backendValNoZ.slice(0, 16);
+    console.log("dt2 value with No Z sliced:", document.getElementById('dt2').value);
+
+</script>
+</body>
+</html>
