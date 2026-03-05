@@ -54,7 +54,9 @@ function App() {
           path="/admin"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDashboard />
+              <LanguageProvider>
+                <AdminDashboard />
+              </LanguageProvider>
             </ProtectedRoute>
           }
         />
