@@ -42,6 +42,8 @@ const AdminDashboard = () => {
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [selectedTrip, setSelectedTrip] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const tripsPerPage = 20;
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -268,7 +270,13 @@ const AdminDashboard = () => {
             }
         }
         return true;
-    }).sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+    }).sort((a, b) => b.id - a.id);
+
+    const totalPages = Math.ceil(displayedTrips.length / tripsPerPage);
+    const paginatedTrips = displayedTrips.slice((currentPage - 1) * tripsPerPage, currentPage * tripsPerPage);
+
+    // Reset to page 1 when filters change
+    const resetPage = () => setCurrentPage(1);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -653,7 +661,7 @@ const AdminDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {displayedTrips.map((trip) => (
+                                {paginatedTrips.map((trip) => (
                                     <tr key={trip.id} className="hover:bg-gray-50">
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{trip.id}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trip.driver ? trip.driver.username : t('unknown')}</td>
@@ -680,6 +688,54 @@ const AdminDashboard = () => {
                             </tbody>
                         </table>
                         {displayedTrips.length === 0 && <div className="p-8 text-center text-gray-500">{t('noTripsFoundAdmin')}</div>}
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                                <span className="text-sm text-gray-600">
+                                    {displayedTrips.length} {t('trips')} — {currentPage} / {totalPages}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 text-sm rounded-md border bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        {isRtl ? '›' : '‹'}
+                                    </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                                        .reduce((acc, p, i, arr) => {
+                                            if (i > 0 && p - arr[i - 1] > 1) acc.push('...');
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((p, i) =>
+                                            p === '...' ? (
+                                                <span key={`dot-${i}`} className="px-2 text-gray-400">…</span>
+                                            ) : (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => setCurrentPage(p)}
+                                                    className={`px-3 py-1 text-sm rounded-md border transition ${currentPage === p
+                                                        ? 'bg-blue-600 text-white border-blue-600'
+                                                        : 'bg-white hover:bg-gray-100'
+                                                        }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            )
+                                        )}
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 text-sm rounded-md border bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        {isRtl ? '‹' : '›'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
