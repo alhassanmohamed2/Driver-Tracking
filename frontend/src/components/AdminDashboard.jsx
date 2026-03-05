@@ -268,7 +268,7 @@ const AdminDashboard = () => {
             }
         }
         return true;
-    });
+    }).sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
 
     const handleLogout = () => {
         localStorage.removeItem('token');
