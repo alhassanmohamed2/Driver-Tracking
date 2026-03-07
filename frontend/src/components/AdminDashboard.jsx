@@ -194,10 +194,10 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsOverTime')}</h3>
                     {totalTrips > 0 ? (
                         <ResponsiveContainer width="100%" height={280}>
-                            <BarChart data={tripsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                            <BarChart data={tripsOverTime} margin={isRtl ? { top: 5, right: -20, left: 5, bottom: 5 } : { top: 5, right: 5, left: -20, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
-                                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} reversed={isRtl} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} orientation={isRtl ? 'right' : 'left'} />
                                 <Tooltip />
                                 <Bar dataKey="completed" name={t('completed')} stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
                                 <Bar dataKey="in_progress" name={t('active')} stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -336,12 +336,12 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                 </div>
                 {cityPerDriver.length > 0 ? (
                     <ResponsiveContainer width="100%" height={Math.max(200, cityPerDriver.length * 40)}>
-                        <BarChart data={cityPerDriver} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <BarChart data={cityPerDriver} layout="vertical" margin={isRtl ? { top: 5, right: 160, left: 30, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} reversed={isRtl} />
+                            <YAxis type="category" dataKey="name" width={isRtl ? 150 : 120} tick={{ fontSize: 11 }} orientation={isRtl ? 'right' : 'left'} />
                             <Tooltip />
-                            <Bar dataKey="count" name={t('tripCount')} radius={[0, 6, 6, 0]}>
+                            <Bar dataKey="count" name={t('tripCount')} radius={isRtl ? [6, 0, 0, 6] : [0, 6, 6, 0]}>
                                 {cityPerDriver.map((_, i) => (
                                     <Cell key={`city-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                                 ))}
@@ -360,15 +360,15 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                 </h3>
                 {avgDurationPerCity.length > 0 ? (
                     <ResponsiveContainer width="100%" height={Math.max(200, avgDurationPerCity.length * 45)}>
-                        <BarChart data={avgDurationPerCity} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <BarChart data={avgDurationPerCity} layout="vertical" margin={isRtl ? { top: 5, right: 160, left: 30, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis type="number" tick={{ fontSize: 11 }} />
-                            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                            <XAxis type="number" tick={{ fontSize: 11 }} reversed={isRtl} />
+                            <YAxis type="category" dataKey="name" width={isRtl ? 150 : 120} tick={{ fontSize: 11 }} orientation={isRtl ? 'right' : 'left'} />
                             <Tooltip formatter={(value, name, props) => {
                                 const item = props.payload;
                                 return [`${value} ${t('minutes')} (${item.count} ${t('tripCount')})`, t('avgTripDuration')];
                             }} />
-                            <Bar dataKey="avgMin" name={t('avgTripDuration')} radius={[0, 6, 6, 0]}>
+                            <Bar dataKey="avgMin" name={t('avgTripDuration')} radius={isRtl ? [6, 0, 0, 6] : [0, 6, 6, 0]}>
                                 {avgDurationPerCity.map((_, i) => (
                                     <Cell key={`avgcity-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                                 ))}
