@@ -193,16 +193,18 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                 <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsOverTime')}</h3>
                     {totalTrips > 0 ? (
-                        <ResponsiveContainer width="100%" height={280}>
-                            <BarChart data={tripsOverTime} margin={isRtl ? { top: 5, right: -20, left: 5, bottom: 5 } : { top: 5, right: 5, left: -20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} reversed={isRtl} />
-                                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} orientation={isRtl ? 'right' : 'left'} />
-                                <Tooltip />
-                                <Bar dataKey="completed" name={t('completed')} stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                                <Bar dataKey="in_progress" name={t('active')} stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <div dir="ltr">
+                            <ResponsiveContainer width="100%" height={280}>
+                                <BarChart data={tripsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                                    <Tooltip />
+                                    <Bar dataKey="completed" name={t('completed')} stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                                    <Bar dataKey="in_progress" name={t('active')} stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     ) : (
                         <div className="h-[280px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                     )}
@@ -212,17 +214,19 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripStatusBreakdown')}</h3>
                     {totalTrips > 0 ? (
-                        <ResponsiveContainer width="100%" height={280}>
-                            <PieChart>
-                                <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                                    {statusData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
-                                    ))}
-                                </Pie>
-                                <Legend />
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <div dir="ltr">
+                            <ResponsiveContainer width="100%" height={280}>
+                                <PieChart>
+                                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                                        {statusData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
+                                        ))}
+                                    </Pie>
+                                    <Legend />
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
                     ) : (
                         <div className="h-[280px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                     )}
@@ -335,19 +339,21 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                     </select>
                 </div>
                 {cityPerDriver.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={Math.max(200, cityPerDriver.length * 40)}>
-                        <BarChart data={cityPerDriver} layout="vertical" margin={isRtl ? { top: 5, right: 160, left: 30, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} reversed={isRtl} />
-                            <YAxis type="category" dataKey="name" width={isRtl ? 150 : 120} tick={{ fontSize: 11 }} orientation={isRtl ? 'right' : 'left'} />
-                            <Tooltip />
-                            <Bar dataKey="count" name={t('tripCount')} radius={isRtl ? [6, 0, 0, 6] : [0, 6, 6, 0]}>
-                                {cityPerDriver.map((_, i) => (
-                                    <Cell key={`city-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <div dir="ltr">
+                        <ResponsiveContainer width="100%" height={Math.max(200, cityPerDriver.length * 40)}>
+                            <BarChart data={cityPerDriver} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                                <Tooltip />
+                                <Bar dataKey="count" name={t('tripCount')} radius={[0, 6, 6, 0]}>
+                                    {cityPerDriver.map((_, i) => (
+                                        <Cell key={`city-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 ) : (
                     <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                 )}
@@ -359,22 +365,24 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                     <Clock size={16} className="text-indigo-500" /> {t('tripDurationByCity')}
                 </h3>
                 {avgDurationPerCity.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={Math.max(200, avgDurationPerCity.length * 45)}>
-                        <BarChart data={avgDurationPerCity} layout="vertical" margin={isRtl ? { top: 5, right: 160, left: 30, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis type="number" tick={{ fontSize: 11 }} reversed={isRtl} />
-                            <YAxis type="category" dataKey="name" width={isRtl ? 150 : 120} tick={{ fontSize: 11 }} orientation={isRtl ? 'right' : 'left'} />
-                            <Tooltip formatter={(value, name, props) => {
-                                const item = props.payload;
-                                return [`${value} ${t('minutes')} (${item.count} ${t('tripCount')})`, t('avgTripDuration')];
-                            }} />
-                            <Bar dataKey="avgMin" name={t('avgTripDuration')} radius={isRtl ? [6, 0, 0, 6] : [0, 6, 6, 0]}>
-                                {avgDurationPerCity.map((_, i) => (
-                                    <Cell key={`avgcity-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <div dir="ltr">
+                        <ResponsiveContainer width="100%" height={Math.max(200, avgDurationPerCity.length * 45)}>
+                            <BarChart data={avgDurationPerCity} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis type="number" tick={{ fontSize: 11 }} />
+                                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                                <Tooltip formatter={(value, name, props) => {
+                                    const item = props.payload;
+                                    return [`${value} ${t('minutes')} (${item.count} ${t('tripCount')})`, t('avgTripDuration')];
+                                }} />
+                                <Bar dataKey="avgMin" name={t('avgTripDuration')} radius={[0, 6, 6, 0]}>
+                                    {avgDurationPerCity.map((_, i) => (
+                                        <Cell key={`avgcity-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 ) : (
                     <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                 )}
