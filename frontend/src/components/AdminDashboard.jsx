@@ -109,6 +109,59 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
         return allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
     }, [trips, t]);
 
+    // ── Driver selector for city/duration charts ──
+    const [chartDriver, setChartDriver] = useState('');
+
+    // Helper: extract city from address string (2nd-to-last comma part, or full string)
+    const extractCity = (address) => {
+        if (!address) return null;
+        const parts = address.split(',').map(p => p.trim());
+        // Typically: "Street, District, City, Country" or "District, City"
+        if (parts.length >= 3) return parts[parts.length - 3];
+        if (parts.length >= 2) return parts[parts.length - 2];
+        return parts[0];
+    };
+
+    // ── City destinations per driver ──
+    const cityPerDriver = useMemo(() => {
+        const targetTrips = chartDriver ? trips.filter(tr => tr.driver_id === parseInt(chartDriver)) : trips;
+        const cityCount = {};
+        targetTrips.forEach(tr => {
+            const addr = tr.arrive_warehouse_address || tr.exit_factory_address || (tr.logs && tr.logs.length > 0 ? tr.logs[0].address : null);
+            const city = extractCity(addr);
+            if (city) {
+                cityCount[city] = (cityCount[city] || 0) + 1;
+            }
+        });
+        return Object.entries(cityCount)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+    }, [trips, chartDriver]);
+
+    // ── Individual trip durations by city ──
+    const tripDurationsByCity = useMemo(() => {
+        const targetTrips = chartDriver ? trips.filter(tr => tr.driver_id === parseInt(chartDriver)) : trips;
+        const results = [];
+        targetTrips.forEach(tr => {
+            if (tr.exit_factory_time && tr.arrive_factory_time) {
+                const startT = new Date(tr.exit_factory_time);
+                const endT = new Date(tr.arrive_factory_time);
+                const durationMin = Math.round((endT - startT) / 60000);
+                if (durationMin > 0) {
+                    const addr = tr.arrive_warehouse_address || tr.exit_factory_address || '';
+                    const city = extractCity(addr) || '—';
+                    results.push({
+                        label: `#${tr.id}`,
+                        city,
+                        durationMin,
+                        driverName: tr.driver ? tr.driver.username : '?',
+                    });
+                }
+            }
+        });
+        return results.sort((a, b) => a.city.localeCompare(b.city));
+    }, [trips, chartDriver]);
+
     const KPICard = ({ icon: Icon, label, value, color, bgColor }) => (
         <div className={`${bgColor} rounded-xl p-4 md:p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow`}>
             <div className="flex items-center justify-between">
@@ -124,7 +177,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
     );
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
             {/* ── KPI Cards ── */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
                 <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" />
@@ -179,22 +232,20 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
 
             {/* ── Bottom Row ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Trips Per Driver */}
+                {/* Trips Per Driver — Pie Chart */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsPerDriver')}</h3>
                     {tripsPerDriver.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={Math.max(200, tripsPerDriver.length * 40)}>
-                            <BarChart data={tripsPerDriver} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11 }} />
-                                <Tooltip />
-                                <Bar dataKey="count" name={t('tripCount')} fill="#6366f1" radius={[0, 6, 6, 0]}>
-                                    {tripsPerDriver.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                        <ResponsiveContainer width="100%" height={280}>
+                            <PieChart>
+                                <Pie data={tripsPerDriver} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="count" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                                    {tripsPerDriver.map((_, i) => (
+                                        <Cell key={`driver-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                                     ))}
-                                </Bar>
-                            </BarChart>
+                                </Pie>
+                                <Legend />
+                                <Tooltip formatter={(value) => [value, t('tripCount')]} />
+                            </PieChart>
                         </ResponsiveContainer>
                     ) : (
                         <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
@@ -259,6 +310,74 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                         <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                     )}
                 </div>
+            </div>
+
+            {/* ── City & Duration Charts ── */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                {/* Driver Selector */}
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800">{t('cityDestinations')}</h3>
+                    <select
+                        value={chartDriver}
+                        onChange={(e) => setChartDriver(e.target.value)}
+                        className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                        <option value="">{t('allDrivers')}</option>
+                        {drivers.map(d => <option key={d.id} value={d.id}>{d.username}</option>)}
+                    </select>
+                </div>
+                {cityPerDriver.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={Math.max(200, cityPerDriver.length * 40)}>
+                        <BarChart data={cityPerDriver} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                            <Tooltip />
+                            <Bar dataKey="count" name={t('tripCount')} radius={[0, 6, 6, 0]}>
+                                {cityPerDriver.map((_, i) => (
+                                    <Cell key={`city-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                )}
+            </div>
+
+            {/* Trip Duration By City */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Clock size={16} className="text-indigo-500" /> {t('tripDurationByCity')}
+                </h3>
+                {tripDurationsByCity.length > 0 ? (
+                    <div className="overflow-x-auto">
+                        <ResponsiveContainer width="100%" height={Math.max(300, tripDurationsByCity.length * 28)}>
+                            <BarChart data={tripDurationsByCity} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: `${t('duration')} (${t('minutes')})`, position: 'insideBottom', offset: -5, fontSize: 11 }} />
+                                <YAxis type="category" dataKey="label" width={60} tick={{ fontSize: 10 }} />
+                                <Tooltip
+                                    formatter={(value) => [`${value} ${t('minutes')}`, t('duration')]}
+                                    labelFormatter={(label) => {
+                                        const item = tripDurationsByCity.find(d => d.label === label);
+                                        return item ? `${label} — ${item.city} (${item.driverName})` : label;
+                                    }}
+                                />
+                                <Bar dataKey="durationMin" name={t('duration')} radius={[0, 6, 6, 0]}>
+                                    {tripDurationsByCity.map((entry, i) => {
+                                        // Color by city
+                                        const cities = [...new Set(tripDurationsByCity.map(d => d.city))];
+                                        const colorIdx = cities.indexOf(entry.city);
+                                        return <Cell key={`dur-${i}`} fill={CHART_COLORS[colorIdx % CHART_COLORS.length]} />;
+                                    })}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                )}
             </div>
         </div>
     );

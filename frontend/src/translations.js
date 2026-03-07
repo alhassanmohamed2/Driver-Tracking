@@ -174,6 +174,14 @@ export const translations = {
         overallAvg: "Overall Average",
         completed: "Completed",
         tripCount: "Trips",
+        cityDestinations: "City Destinations Per Driver",
+        tripDurationByCity: "Trip Duration By City",
+        city: "City",
+        duration: "Duration",
+        driver: "Driver",
+        selectDriver: "Select Driver",
+        allDrivers: "All Drivers",
+        tripId: "Trip #",
     },
     ar: {
         // Header
@@ -354,6 +362,14 @@ export const translations = {
         overallAvg: "المعدل العام",
         completed: "مكتملة",
         tripCount: "رحلات",
+        cityDestinations: "المدن المقصودة لكل سائق",
+        tripDurationByCity: "مدة الرحلة حسب المدينة",
+        city: "المدينة",
+        duration: "المدة",
+        driver: "السائق",
+        selectDriver: "اختر سائق",
+        allDrivers: "كل السائقين",
+        tripId: "رحلة #",
     },
     ur: {
         // Header
