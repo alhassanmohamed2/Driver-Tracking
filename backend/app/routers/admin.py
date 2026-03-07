@@ -1,6 +1,6 @@
 from fastapi import UploadFile, File
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from fastapi.responses import Response
 from typing import List, Optional
 import pandas as pd
@@ -18,7 +18,10 @@ def check_admin(user: models.User):
 @router.get("/trips", response_model=List[schemas.Trip])
 def get_all_trips(current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     check_admin(current_user)
-    trips = db.query(models.Trip).all()
+    trips = db.query(models.Trip).options(
+        joinedload(models.Trip.driver),
+        selectinload(models.Trip.logs)
+    ).order_by(models.Trip.id.desc()).all()
     return trips
 
 @router.get("/cars", response_model=List[schemas.Car])
