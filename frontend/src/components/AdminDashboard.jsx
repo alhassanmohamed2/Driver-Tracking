@@ -138,10 +138,10 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
             .sort((a, b) => b.count - a.count);
     }, [trips, chartDriver]);
 
-    // ── Individual trip durations by city ──
-    const tripDurationsByCity = useMemo(() => {
+    // ── Average trip duration per city ──
+    const avgDurationPerCity = useMemo(() => {
         const targetTrips = chartDriver ? trips.filter(tr => tr.driver_id === parseInt(chartDriver)) : trips;
-        const results = [];
+        const cityData = {};
         targetTrips.forEach(tr => {
             if (tr.exit_factory_time && tr.arrive_factory_time) {
                 const startT = new Date(tr.exit_factory_time);
@@ -150,16 +150,15 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                 if (durationMin > 0) {
                     const addr = tr.arrive_warehouse_address || tr.exit_factory_address || '';
                     const city = extractCity(addr) || '—';
-                    results.push({
-                        label: `#${tr.id}`,
-                        city,
-                        durationMin,
-                        driverName: tr.driver ? tr.driver.username : '?',
-                    });
+                    if (!cityData[city]) cityData[city] = { total: 0, count: 0 };
+                    cityData[city].total += durationMin;
+                    cityData[city].count++;
                 }
             }
         });
-        return results.sort((a, b) => a.city.localeCompare(b.city));
+        return Object.entries(cityData)
+            .map(([name, d]) => ({ name, avgMin: Math.round(d.total / d.count), count: d.count }))
+            .sort((a, b) => b.avgMin - a.avgMin);
     }, [trips, chartDriver]);
 
     const KPICard = ({ icon: Icon, label, value, color, bgColor }) => (
@@ -345,36 +344,28 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
                 )}
             </div>
 
-            {/* Trip Duration By City */}
+            {/* Avg Duration Per City */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
                 <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <Clock size={16} className="text-indigo-500" /> {t('tripDurationByCity')}
                 </h3>
-                {tripDurationsByCity.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <ResponsiveContainer width="100%" height={Math.max(300, tripDurationsByCity.length * 28)}>
-                            <BarChart data={tripDurationsByCity} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: `${t('duration')} (${t('minutes')})`, position: 'insideBottom', offset: -5, fontSize: 11 }} />
-                                <YAxis type="category" dataKey="label" width={60} tick={{ fontSize: 10 }} />
-                                <Tooltip
-                                    formatter={(value) => [`${value} ${t('minutes')}`, t('duration')]}
-                                    labelFormatter={(label) => {
-                                        const item = tripDurationsByCity.find(d => d.label === label);
-                                        return item ? `${label} — ${item.city} (${item.driverName})` : label;
-                                    }}
-                                />
-                                <Bar dataKey="durationMin" name={t('duration')} radius={[0, 6, 6, 0]}>
-                                    {tripDurationsByCity.map((entry, i) => {
-                                        // Color by city
-                                        const cities = [...new Set(tripDurationsByCity.map(d => d.city))];
-                                        const colorIdx = cities.indexOf(entry.city);
-                                        return <Cell key={`dur-${i}`} fill={CHART_COLORS[colorIdx % CHART_COLORS.length]} />;
-                                    })}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                {avgDurationPerCity.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={Math.max(200, avgDurationPerCity.length * 45)}>
+                        <BarChart data={avgDurationPerCity} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis type="number" tick={{ fontSize: 11 }} />
+                            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+                            <Tooltip formatter={(value, name, props) => {
+                                const item = props.payload;
+                                return [`${value} ${t('minutes')} (${item.count} ${t('tripCount')})`, t('avgTripDuration')];
+                            }} />
+                            <Bar dataKey="avgMin" name={t('avgTripDuration')} radius={[0, 6, 6, 0]}>
+                                {avgDurationPerCity.map((_, i) => (
+                                    <Cell key={`avgcity-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
                 ) : (
                     <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                 )}
