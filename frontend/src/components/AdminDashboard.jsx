@@ -1,9 +1,270 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
+const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+// ══════════════════════════════════════════════════════════════
+// DashboardView — Analytics Sub-component
+// ══════════════════════════════════════════════════════════════
+const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
+
+    // ── KPI Calculations ──
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const totalTrips = trips.length;
+    const activeTrips = trips.filter(tr => tr.status === 'in_progress').length;
+    const completedTrips = trips.filter(tr => tr.status === 'completed').length;
+    const tripsToday = trips.filter(tr => {
+        const d = new Date(tr.start_date); d.setHours(0, 0, 0, 0);
+        return d.getTime() === today.getTime();
+    }).length;
+
+    // ── Trips Over Time (last 30 days) ──
+    const tripsOverTime = useMemo(() => {
+        const days = {};
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0);
+            const key = d.toISOString().slice(0, 10);
+            days[key] = { date: key, label: `${d.getDate()}/${d.getMonth() + 1}`, completed: 0, in_progress: 0 };
+        }
+        trips.forEach(tr => {
+            const key = tr.start_date ? tr.start_date.slice(0, 10) : null;
+            if (key && days[key]) {
+                if (tr.status === 'completed') days[key].completed++;
+                else days[key].in_progress++;
+            }
+        });
+        return Object.values(days);
+    }, [trips]);
+
+    // ── Trips Per Driver ──
+    const tripsPerDriver = useMemo(() => {
+        const map = {};
+        drivers.forEach(d => { map[d.id] = { name: d.username, count: 0 }; });
+        trips.forEach(tr => { if (map[tr.driver_id]) map[tr.driver_id].count++; });
+        return Object.values(map).sort((a, b) => b.count - a.count);
+    }, [trips, drivers]);
+
+    // ── Trip Status Breakdown ──
+    const statusData = [
+        { name: t('completedTrips'), value: completedTrips },
+        { name: t('activeTrips'), value: activeTrips },
+    ];
+
+    // ── Average Trip Duration (per driver) ──
+    const tripDurations = useMemo(() => {
+        const driverDurations = {};
+        drivers.forEach(d => { driverDurations[d.id] = { name: d.username, durations: [] }; });
+
+        trips.forEach(tr => {
+            if (tr.logs && tr.logs.length >= 2) {
+                const sorted = [...tr.logs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                const first = new Date(sorted[0].timestamp);
+                const last = new Date(sorted[sorted.length - 1].timestamp);
+                const diffMs = last - first;
+                if (diffMs > 0 && driverDurations[tr.driver_id]) {
+                    driverDurations[tr.driver_id].durations.push(diffMs);
+                }
+            }
+        });
+
+        const results = Object.values(driverDurations)
+            .filter(d => d.durations.length > 0)
+            .map(d => {
+                const avgMs = d.durations.reduce((a, b) => a + b, 0) / d.durations.length;
+                const avgH = Math.floor(avgMs / 3600000);
+                const avgM = Math.floor((avgMs % 3600000) / 60000);
+                return { name: d.name, avgH, avgM, tripCount: d.durations.length };
+            })
+            .sort((a, b) => (a.avgH * 60 + a.avgM) - (b.avgH * 60 + b.avgM));
+
+        // Overall average
+        const allDurations = Object.values(driverDurations).flatMap(d => d.durations);
+        let overallH = 0, overallM = 0;
+        if (allDurations.length > 0) {
+            const totalAvg = allDurations.reduce((a, b) => a + b, 0) / allDurations.length;
+            overallH = Math.floor(totalAvg / 3600000);
+            overallM = Math.floor((totalAvg % 3600000) / 60000);
+        }
+        return { perDriver: results, overallH, overallM };
+    }, [trips, drivers]);
+
+    // ── Recent Activity (last 10 events across all trips) ──
+    const recentActivity = useMemo(() => {
+        const allLogs = [];
+        trips.forEach(tr => {
+            if (tr.logs) {
+                tr.logs.forEach(log => {
+                    allLogs.push({
+                        ...log,
+                        driverName: tr.driver ? tr.driver.username : t('unknown'),
+                        tripId: tr.id,
+                    });
+                });
+            }
+        });
+        return allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
+    }, [trips, t]);
+
+    const KPICard = ({ icon: Icon, label, value, color, bgColor }) => (
+        <div className={`${bgColor} rounded-xl p-4 md:p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow`}>
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="text-xs md:text-sm font-medium text-gray-500">{label}</p>
+                    <p className={`text-2xl md:text-3xl font-bold ${color} mt-1`}>{value}</p>
+                </div>
+                <div className={`p-2 md:p-3 rounded-full ${bgColor}`}>
+                    <Icon className={`${color} w-5 h-5 md:w-6 md:h-6`} />
+                </div>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="space-y-6">
+            {/* ── KPI Cards ── */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+                <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" />
+                <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" />
+                <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" />
+                <KPICard icon={Users} label={t('totalDrivers')} value={drivers.length} color="text-purple-600" bgColor="bg-purple-50" />
+                <KPICard icon={Truck} label={t('totalCars')} value={cars.length} color="text-indigo-600" bgColor="bg-indigo-50" />
+                <KPICard icon={TrendingUp} label={t('tripsToday')} value={tripsToday} color="text-rose-600" bgColor="bg-rose-50" />
+            </div>
+
+            {/* ── Charts Row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+                {/* Trips Over Time */}
+                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsOverTime')}</h3>
+                    {totalTrips > 0 ? (
+                        <ResponsiveContainer width="100%" height={280}>
+                            <BarChart data={tripsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                                <Tooltip />
+                                <Bar dataKey="completed" name={t('completed')} stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                                <Bar dataKey="in_progress" name={t('active')} stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="h-[280px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                    )}
+                </div>
+
+                {/* Trip Status Doughnut */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripStatusBreakdown')}</h3>
+                    {totalTrips > 0 ? (
+                        <ResponsiveContainer width="100%" height={280}>
+                            <PieChart>
+                                <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                                    {statusData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
+                                    ))}
+                                </Pie>
+                                <Legend />
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="h-[280px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                    )}
+                </div>
+            </div>
+
+            {/* ── Bottom Row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+                {/* Trips Per Driver */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsPerDriver')}</h3>
+                    {tripsPerDriver.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={Math.max(200, tripsPerDriver.length * 40)}>
+                            <BarChart data={tripsPerDriver} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11 }} />
+                                <Tooltip />
+                                <Bar dataKey="count" name={t('tripCount')} fill="#6366f1" radius={[0, 6, 6, 0]}>
+                                    {tripsPerDriver.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                    )}
+                </div>
+
+                {/* Avg Trip Duration */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Clock size={16} className="text-blue-500" /> {t('avgTripDuration')}
+                    </h3>
+                    {tripDurations.perDriver.length > 0 ? (
+                        <div className="space-y-3">
+                            {/* Overall avg */}
+                            <div className="bg-blue-50 rounded-lg p-3 flex justify-between items-center">
+                                <span className="text-sm font-bold text-blue-800">{t('overallAvg')}</span>
+                                <span className="text-lg font-bold text-blue-600">
+                                    {tripDurations.overallH > 0 && `${tripDurations.overallH} ${t('hours')} `}{tripDurations.overallM} {t('minutes')}
+                                </span>
+                            </div>
+                            <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                                {tripDurations.perDriver.map((d, i) => (
+                                    <div key={i} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                                        <div>
+                                            <span className="text-sm font-medium text-gray-800">{d.name}</span>
+                                            <span className="text-xs text-gray-400 ml-2">({d.tripCount} {t('tripCount')})</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-gray-600">
+                                            {d.avgH > 0 && `${d.avgH}${isRtl ? ' ' : ''}h `}{d.avgM}m
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                    )}
+                </div>
+
+                {/* Recent Activity */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Activity size={16} className="text-green-500" /> {t('recentActivity')}
+                    </h3>
+                    {recentActivity.length > 0 ? (
+                        <div className="space-y-3 max-h-[320px] overflow-y-auto">
+                            {recentActivity.map((log, i) => (
+                                <div key={i} className={`flex items-start gap-3 py-2 ${i < recentActivity.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-1">
+                                            <span className="text-sm font-bold text-gray-800">{log.driverName}</span>
+                                            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">{log.state}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-0.5">{formatSaudiDate(log.timestamp)}</p>
+                                        {log.address && <p className="text-xs text-gray-400 truncate">{log.address}</p>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ══════════════════════════════════════════════════════════════
 const AdminDashboard = () => {
     const { language, toggleLanguage, t } = useLanguage();
     const isRtl = language === 'ar';
@@ -12,7 +273,7 @@ const AdminDashboard = () => {
     const [drivers, setDrivers] = useState([]);
     const [cars, setCars] = useState([]);
     const [settings, setSettings] = useState({ companyName: '', logoUrl: '' });
-    const [viewMode, setViewMode] = useState('trips');
+    const [viewMode, setViewMode] = useState('dashboard');
     const [selectedDriver, setSelectedDriver] = useState('');
 
     // Driver Form State
@@ -352,6 +613,7 @@ const AdminDashboard = () => {
                 <div className="px-3 md:px-4 pb-3 flex flex-wrap gap-2 md:gap-4 items-center">
                     {/* View mode tabs */}
                     <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button onClick={() => setViewMode('dashboard')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'dashboard' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('dashboard')}</button>
                         <button onClick={() => setViewMode('trips')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'trips' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('trips')}</button>
                         <button onClick={() => setViewMode('cars')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'cars' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('cars')}</button>
                         <button onClick={() => setViewMode('drivers')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'drivers' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('drivers')}</button>
@@ -645,6 +907,9 @@ const AdminDashboard = () => {
                         </div>
                     </div>
                 )}
+
+                {/* ═══ ANALYTICS DASHBOARD ═══ */}
+                {viewMode === 'dashboard' && <DashboardView trips={trips} drivers={drivers} cars={cars} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} />}
 
                 {/* ═══ TRIPS TABLE ═══ */}
                 {viewMode === 'trips' && (

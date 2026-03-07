@@ -154,6 +154,26 @@ export const translations = {
         clear: "Clear",
         unknown: "Unknown",
         na: "N/A",
+
+        // ─── Analytics Dashboard ───
+        dashboard: "Dashboard",
+        totalTrips: "Total Trips",
+        activeTrips: "Active Trips",
+        completedTrips: "Completed Trips",
+        totalDrivers: "Total Drivers",
+        totalCars: "Total Cars",
+        tripsToday: "Trips Today",
+        tripsOverTime: "Trips Over Time (Last 30 Days)",
+        tripsPerDriver: "Trips Per Driver",
+        tripStatusBreakdown: "Trip Status",
+        avgTripDuration: "Average Trip Duration",
+        recentActivity: "Recent Activity",
+        hours: "hours",
+        minutes: "min",
+        noData: "No data available",
+        overallAvg: "Overall Average",
+        completed: "Completed",
+        tripCount: "Trips",
     },
     ar: {
         // Header
@@ -314,6 +334,26 @@ export const translations = {
         clear: "مسح",
         unknown: "غير معروف",
         na: "غير متوفر",
+
+        // ─── Analytics Dashboard ───
+        dashboard: "لوحة المعلومات",
+        totalTrips: "إجمالي الرحلات",
+        activeTrips: "الرحلات النشطة",
+        completedTrips: "الرحلات المكتملة",
+        totalDrivers: "إجمالي السائقين",
+        totalCars: "إجمالي السيارات",
+        tripsToday: "رحلات اليوم",
+        tripsOverTime: "الرحلات خلال آخر 30 يوم",
+        tripsPerDriver: "الرحلات لكل سائق",
+        tripStatusBreakdown: "حالة الرحلات",
+        avgTripDuration: "متوسط مدة الرحلة",
+        recentActivity: "النشاط الأخير",
+        hours: "ساعات",
+        minutes: "دقيقة",
+        noData: "لا توجد بيانات",
+        overallAvg: "المعدل العام",
+        completed: "مكتملة",
+        tripCount: "رحلات",
     },
     ur: {
         // Header
