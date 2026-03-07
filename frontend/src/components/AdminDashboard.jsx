@@ -112,14 +112,14 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
     // ── Driver selector for city/duration charts ──
     const [chartDriver, setChartDriver] = useState('');
 
-    // Helper: extract city from address string (2nd-to-last comma part, or full string)
+    // Helper: extract city from address (first comma part, e.g. "Al Badai, Al-Qassim Province, Saudi Arabia" → "Al Badai")
     const extractCity = (address) => {
         if (!address) return null;
-        const parts = address.split(',').map(p => p.trim());
-        // Typically: "Street, District, City, Country" or "District, City"
-        if (parts.length >= 3) return parts[parts.length - 3];
-        if (parts.length >= 2) return parts[parts.length - 2];
-        return parts[0];
+        const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0);
+        if (parts.length === 0) return null;
+        // Skip parts that are just numbers (street numbers)
+        const city = parts.find(p => !/^\d+$/.test(p));
+        return city || parts[0];
     };
 
     // ── City destinations per driver ──
@@ -231,21 +231,30 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
 
             {/* ── Bottom Row ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Trips Per Driver — Pie Chart */}
+                {/* Trips Per Driver — Leaderboard */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsPerDriver')}</h3>
                     {tripsPerDriver.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={280}>
-                            <PieChart>
-                                <Pie data={tripsPerDriver} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="count" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                                    {tripsPerDriver.map((_, i) => (
-                                        <Cell key={`driver-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Legend />
-                                <Tooltip formatter={(value) => [value, t('tripCount')]} />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                            {tripsPerDriver.map((d, i) => {
+                                const maxCount = tripsPerDriver[0].count;
+                                const pct = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
+                                return (
+                                    <div key={i} className="flex items-center gap-3">
+                                        <span className="text-xs font-bold text-gray-400 w-5 text-center">{i + 1}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-sm font-medium text-gray-800 truncate">{d.name}</span>
+                                                <span className="text-sm font-bold text-gray-600 flex-shrink-0">{d.count}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-100 rounded-full h-2">
+                                                <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     ) : (
                         <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                     )}
