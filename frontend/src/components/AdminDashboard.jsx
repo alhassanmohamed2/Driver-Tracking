@@ -10,7 +10,7 @@ const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#e
 // ══════════════════════════════════════════════════════════════
 // DashboardView — Analytics Sub-component
 // ══════════════════════════════════════════════════════════════
-const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
+const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setViewMode, setStatusFilter, setDateFrom, setDateTo }) => {
 
     // ── KPI Calculations ──
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -109,6 +109,92 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
         return allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
     }, [trips, t]);
 
+    // ── Vehicle Status Dashboard ──
+    const vehicleStatus = useMemo(() => {
+        const atFactory = [];
+        const atWarehouse = [];
+        const outbound = [];
+        const inbound = [];
+
+        trips.filter(tr => tr.status === 'in_progress').forEach(tr => {
+            if (!tr.logs || tr.logs.length === 0) {
+                atFactory.push(tr);
+            } else {
+                const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                const latestState = sortedLogs[0].state;
+                if (latestState === 'Arrival at Factory') atFactory.push(tr);
+                else if (latestState === 'Exit Factory') outbound.push(tr);
+                else if (latestState === 'Arrival at Warehouse') atWarehouse.push(tr);
+                else if (latestState === 'Exit Warehouse') inbound.push(tr);
+                else atFactory.push(tr);
+            }
+        });
+
+        return { atFactory, atWarehouse, outbound, inbound };
+    }, [trips]);
+
+    const [selectedStatusFilter, setSelectedStatusFilter] = useState(null);
+
+    // ── Trip Time Tracking ──
+    const tripTimes = useMemo(() => {
+        return trips.map(tr => {
+            let departureTime = null;
+            let returnTime = null;
+            let waitingTime = null;
+
+            if (tr.logs && tr.logs.length > 0) {
+                const getLogTime = (stateName) => {
+                    const log = tr.logs.find(l => l.state === stateName);
+                    return log ? new Date(log.timestamp) : null;
+                };
+
+                const tExitFactory = getLogTime('Exit Factory');
+                const tArriveWarehouse = getLogTime('Arrival at Warehouse');
+                const tExitWarehouse = getLogTime('Exit Warehouse');
+                const tArriveFactory = getLogTime('Arrival at Factory');
+                const now = new Date();
+
+                if (tExitFactory) {
+                    departureTime = ((tArriveWarehouse || now) - tExitFactory) / 60000;
+                }
+                if (tArriveWarehouse) {
+                    waitingTime = ((tExitWarehouse || now) - tArriveWarehouse) / 60000;
+                }
+                if (tExitWarehouse) {
+                    returnTime = ((tArriveFactory || now) - tExitWarehouse) / 60000;
+                }
+            }
+
+            return {
+                ...tr,
+                departureTime,
+                waitingTime,
+                returnTime
+            };
+        });
+    }, [trips]);
+
+    const formatTimeMetric = (minutes) => {
+        if (minutes === null || minutes === undefined) return '—';
+        const h = Math.floor(minutes / 60);
+        const m = Math.floor(minutes % 60);
+        return `${h}${t('hours').charAt(0)} ${m}${t('minutes').charAt(0)}`;
+    };
+
+    const getTimeColorClass = (minutes, isWait) => {
+        if (minutes === null || minutes === undefined) return 'bg-gray-200';
+        if (isWait) {
+            if (minutes < 60) return 'bg-green-500';
+            if (minutes < 120) return 'bg-yellow-400';
+            return 'bg-red-500';
+        } else {
+            if (minutes < 120) return 'bg-green-500';
+            if (minutes < 240) return 'bg-yellow-400';
+            return 'bg-red-500';
+        }
+    };
+
+
     // ── Driver selector for city/duration charts ──
     const [chartDriver, setChartDriver] = useState('');
 
@@ -161,8 +247,11 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
             .sort((a, b) => b.avgMin - a.avgMin);
     }, [trips, chartDriver]);
 
-    const KPICard = ({ icon: Icon, label, value, color, bgColor }) => (
-        <div className={`${bgColor} rounded-xl p-4 md:p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow`}>
+    const KPICard = ({ icon: Icon, label, value, color, bgColor, onClick }) => (
+        <div
+            onClick={onClick}
+            className={`${bgColor} rounded-xl p-4 md:p-5 border border-gray-100 shadow-sm transition-all ${onClick ? 'cursor-pointer hover:shadow-md hover:ring-2 hover:ring-offset-1 hover:ring-blue-200 hover:-translate-y-1' : ''}`}
+        >
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-xs md:text-sm font-medium text-gray-500">{label}</p>
@@ -179,12 +268,176 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate }) => {
         <div className="space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
             {/* ── KPI Cards ── */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-                <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" />
-                <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" />
-                <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" />
-                <KPICard icon={Users} label={t('totalDrivers')} value={drivers.length} color="text-purple-600" bgColor="bg-purple-50" />
-                <KPICard icon={Truck} label={t('totalCars')} value={cars.length} color="text-indigo-600" bgColor="bg-indigo-50" />
-                <KPICard icon={TrendingUp} label={t('tripsToday')} value={tripsToday} color="text-rose-600" bgColor="bg-rose-50" />
+                <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" onClick={() => { setViewMode('trips'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} />
+                <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" onClick={() => { setViewMode('trips'); setStatusFilter('in_progress'); setDateFrom(''); setDateTo(''); }} />
+                <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" onClick={() => { setViewMode('trips'); setStatusFilter('completed'); setDateFrom(''); setDateTo(''); }} />
+                <KPICard icon={Users} label={t('totalDrivers')} value={drivers.length} color="text-purple-600" bgColor="bg-purple-50" onClick={() => { setViewMode('drivers'); }} />
+                <KPICard icon={Truck} label={t('totalCars')} value={cars.length} color="text-indigo-600" bgColor="bg-indigo-50" onClick={() => { setViewMode('cars'); }} />
+                <KPICard icon={TrendingUp} label={t('tripsToday')} value={tripsToday} color="text-rose-600" bgColor="bg-rose-50" onClick={() => {
+                    setViewMode('trips');
+                    setStatusFilter('all');
+                    const td = new Date();
+                    const yyyy = td.getFullYear();
+                    const mm = String(td.getMonth() + 1).padStart(2, '0');
+                    const dd = String(td.getDate()).padStart(2, '0');
+                    const dateStr = `${yyyy}-${mm}-${dd}`;
+                    setDateFrom(dateStr);
+                    setDateTo(dateStr);
+                }} />
+            </div>
+
+            {/* ── Vehicle Status Dashboard ── */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800">{t('vehicleStatus')}</h3>
+                    {selectedStatusFilter && (
+                        <button onClick={() => setSelectedStatusFilter(null)} className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                            <X size={14} /> {t('hideDetails')}
+                        </button>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'atFactory' ? null : 'atFactory')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'atFactory' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                    >
+                        <MapPin className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'atFactory' ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.atFactory.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('atFactory')}</span>
+                    </button>
+
+                    <button
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'outbound' ? null : 'outbound')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'outbound' ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                    >
+                        <Truck className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'outbound' ? 'text-amber-600' : 'text-gray-500'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.outbound.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('outbound')}</span>
+                    </button>
+
+                    <button
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'atWarehouse' ? null : 'atWarehouse')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'atWarehouse' ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                    >
+                        <MapPin className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'atWarehouse' ? 'text-purple-600' : 'text-gray-500'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.atWarehouse.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('atWarehouse')}</span>
+                    </button>
+
+                    <button
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'inbound' ? null : 'inbound')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'inbound' ? 'border-green-500 bg-green-50 ring-2 ring-green-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                    >
+                        <Truck className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'inbound' ? 'text-green-600 transform scale-x-[-1]' : 'text-gray-500 transform scale-x-[-1]'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.inbound.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('inbound')}</span>
+                    </button>
+                </div>
+
+                {selectedStatusFilter && (
+                    <div className="mt-4 border-t border-gray-100 pt-4">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead>
+                                    <tr className="bg-gray-50 text-gray-500">
+                                        <th className="py-3 px-4 rounded-l-lg font-medium">{t('tripId')}</th>
+                                        <th className="py-3 px-4 font-medium">{t('driver')}</th>
+                                        <th className="py-3 px-4 font-medium">{t('startDate')}</th>
+                                        <th className="py-3 px-4 rounded-r-lg font-medium text-right">{t('actions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {vehicleStatus[selectedStatusFilter].length > 0 ? (
+                                        vehicleStatus[selectedStatusFilter].map((tr) => (
+                                            <tr key={tr.id} className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors`}>
+                                                <td className="py-3 px-4 font-medium text-gray-800">#{tr.id}</td>
+                                                <td className="py-3 px-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                                                            {tr.driver ? tr.driver.username.charAt(0).toUpperCase() : '?'}
+                                                        </div>
+                                                        <span className="font-medium text-gray-700">{tr.driver ? tr.driver.username : t('unknown')}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4 text-gray-600">{formatSaudiDate(tr.start_date)}</td>
+                                                <td className="py-3 px-4 text-right">
+                                                    <button onClick={() => { setSelectedTrip(tr); setShowDetailsModal(true); }} className="text-blue-600 hover:text-blue-800 text-xs font-medium inline-flex items-center justify-end gap-1">
+                                                        <Activity size={14} /> {t('viewDetails')}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="4" className="py-8 text-center text-gray-400">
+                                                {t('noVehiclesInState')}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Trip Time Tracking ── */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 mb-6 overflow-hidden">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripTimeTracking')}</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                        <thead>
+                            <tr className="bg-gray-50 text-gray-500">
+                                <th className="py-3 px-4 rounded-l-lg font-medium">{t('tripId')}</th>
+                                <th className="py-3 px-4 font-medium">{t('driver')}</th>
+                                <th className="py-3 px-4 font-medium">{t('status')}</th>
+                                <th className="py-3 px-4 font-medium">{t('departureTime')}</th>
+                                <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
+                                <th className="py-3 px-4 rounded-r-lg font-medium">{t('returnTime')}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {tripTimes.filter(tr => tr.status === 'in_progress').slice(0, 10).map((tr) => (
+                                <tr key={`time-${tr.id}`} className="hover:bg-gray-50 transition-colors">
+                                    <td className="py-3 px-4 font-medium text-gray-800">#{tr.id}</td>
+                                    <td className="py-3 px-4 text-gray-700">{tr.driver ? tr.driver.username : t('unknown')}</td>
+                                    <td className="py-3 px-4">
+                                        <span className="inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                            {t('active')}
+                                        </span>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tr.departureTime, false)}`}></span>
+                                            <span className="text-gray-600 font-medium">{formatTimeMetric(tr.departureTime)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tr.waitingTime, true)}`}></span>
+                                            <span className="text-gray-600 font-medium">{formatTimeMetric(tr.waitingTime)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tr.returnTime, false)}`}></span>
+                                            <span className="text-gray-600 font-medium">{formatTimeMetric(tr.returnTime)}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {tripTimes.filter(tr => tr.status === 'in_progress').length === 0 && (
+                                <tr>
+                                    <td colSpan="6" className="py-8 text-center text-gray-400">
+                                        {t('noData')}
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* ── Charts Row ── */}
@@ -638,6 +891,7 @@ const AdminDashboard = () => {
 
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
 
     const handleExport = () => exportTrips(selectedDriver || null, dateFrom || null, dateTo || null);
 
@@ -648,6 +902,7 @@ const AdminDashboard = () => {
 
     const displayedTrips = trips.filter(trip => {
         if (selectedDriver && trip.driver_id !== parseInt(selectedDriver)) return false;
+        if (statusFilter !== 'all' && trip.status !== statusFilter) return false;
         if (dateFrom || dateTo) {
             const tripDate = new Date(trip.start_date);
             if (dateFrom && tripDate < new Date(dateFrom)) return false;
@@ -748,6 +1003,15 @@ const AdminDashboard = () => {
 
                     {viewMode === 'trips' && (
                         <>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => { setStatusFilter(e.target.value); resetPage(); }}
+                                className="px-2 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-md text-xs md:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="all">{t('statusLabel') || 'Status'}: {t('all') || 'All'}</option>
+                                <option value="in_progress">{t('active')}</option>
+                                <option value="completed">{t('completed')}</option>
+                            </select>
                             <select
                                 value={selectedDriver}
                                 onChange={(e) => setSelectedDriver(e.target.value)}
@@ -1036,7 +1300,7 @@ const AdminDashboard = () => {
                 )}
 
                 {/* ═══ ANALYTICS DASHBOARD ═══ */}
-                {viewMode === 'dashboard' && <DashboardView trips={trips} drivers={drivers} cars={cars} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} />}
+                {viewMode === 'dashboard' && <DashboardView trips={trips} drivers={drivers} cars={cars} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} setViewMode={setViewMode} setStatusFilter={setStatusFilter} setDateFrom={setDateFrom} setDateTo={setDateTo} />}
 
                 {/* ═══ TRIPS TABLE ═══ */}
                 {viewMode === 'trips' && (
