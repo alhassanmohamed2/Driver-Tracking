@@ -19,7 +19,7 @@ services:
     build: ./backend
     restart: always
     ports:
-      - "8003:8000"
+      - "8002:8000"
     environment:
       DATABASE_URL: mysql+mysqlconnector://user:password@db/trips_db
       TZ: Asia/Riyadh
@@ -33,7 +33,7 @@ services:
     build: ./frontend
     restart: always
     ports:
-      - "8548:80"
+      - "8547:80"
     depends_on:
       - backend
 
