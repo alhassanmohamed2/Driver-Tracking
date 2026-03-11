@@ -30,6 +30,7 @@ services:
         condition: service_healthy
     volumes:
       - static_data:/app/app/static
+      - backup_data:/app/backups
 
   frontend:
     build: ./frontend
@@ -42,3 +43,4 @@ services:
 volumes:
   db_data:
   static_data:
+  backup_data:
