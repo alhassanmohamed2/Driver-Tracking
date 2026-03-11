@@ -1324,9 +1324,9 @@ const AdminDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {drivers.map((driver) => (
+                                {drivers.map((driver, index) => (
                                     <tr key={driver.id} className="hover:bg-gray-50">
-                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{driver.id}</td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{index + 1}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{driver.username}</td>
                                         <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">
                                             {driver.car ? (
@@ -1360,9 +1360,9 @@ const AdminDashboard = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {cars.map((car) => (
+                                {cars.map((car, index) => (
                                     <tr key={car.id} className="hover:bg-gray-50">
-                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{car.id}</td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{index + 1}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-bold text-gray-900">{car.plate}</td>
                                         <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-600">{car.model}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">{car.status}</span></td>
