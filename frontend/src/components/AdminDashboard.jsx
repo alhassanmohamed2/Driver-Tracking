@@ -53,22 +53,59 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
         const outbound = [];
         const inbound = [];
 
-        trips.filter(tr => tr.status === 'in_progress').forEach(tr => {
-            if (!tr.logs || tr.logs.length === 0) {
-                readyToDepart.push(tr);
-            } else {
+        // Build a map: car_plate -> latest in_progress trip state
+        const activeTrips = trips.filter(tr => tr.status === 'in_progress');
+        const carTripMap = {};
+
+        activeTrips.forEach(tr => {
+            const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
+            if (!plate) return;
+
+            let state = 'ready'; // default: no logs = ready to depart
+            if (tr.logs && tr.logs.length > 0) {
                 const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                const latestState = sortedLogs[0].state;
-                if (latestState === 'Arrival at Factory') returnedToFactory.push(tr);
-                else if (latestState === 'Exit Factory') outbound.push(tr);
-                else if (latestState === 'Arrival at Warehouse') atWarehouse.push(tr);
-                else if (latestState === 'Exit Warehouse') inbound.push(tr);
+                state = sortedLogs[0].state;
+            }
+            carTripMap[plate] = { trip: tr, state };
+        });
+
+        // Iterate over ALL registered cars
+        cars.forEach(car => {
+            const entry = carTripMap[car.plate];
+            if (!entry) {
+                // Car has no active trip → resting at factory after completing a trip
+                returnedToFactory.push({ id: `car-${car.id}`, car, driver: null, status: 'idle' });
+            } else {
+                const { trip, state } = entry;
+                if (state === 'ready') readyToDepart.push(trip);
+                else if (state === 'Arrival at Factory') returnedToFactory.push(trip);
+                else if (state === 'Exit Factory') outbound.push(trip);
+                else if (state === 'Arrival at Warehouse') atWarehouse.push(trip);
+                else if (state === 'Exit Warehouse') inbound.push(trip);
+                else readyToDepart.push(trip);
+            }
+        });
+
+        // Also handle trips whose driver has no car (edge case like mzada with NULL plate)
+        activeTrips.forEach(tr => {
+            const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
+            if (!plate) {
+                let state = 'ready';
+                if (tr.logs && tr.logs.length > 0) {
+                    const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    state = sortedLogs[0].state;
+                }
+                if (state === 'ready') readyToDepart.push(tr);
+                else if (state === 'Arrival at Factory') returnedToFactory.push(tr);
+                else if (state === 'Exit Factory') outbound.push(tr);
+                else if (state === 'Arrival at Warehouse') atWarehouse.push(tr);
+                else if (state === 'Exit Warehouse') inbound.push(tr);
                 else readyToDepart.push(tr);
             }
         });
 
         return { readyToDepart, returnedToFactory, atWarehouse, outbound, inbound };
-    }, [trips]);
+    }, [trips, cars]);
 
     const [selectedStatusFilter, setSelectedStatusFilter] = useState(null);
 
@@ -184,14 +221,22 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     )}
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <button
-                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'readyToDepart' ? null : 'readyToDepart')}
-                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'readyToDepart' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'atFactory' ? null : 'atFactory')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'atFactory' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
                     >
-                        <PlayCircle className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'readyToDepart' ? 'text-blue-600' : 'text-gray-500'}`} />
-                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.readyToDepart.length}</span>
-                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('readyToDepart')}</span>
+                        <MapPin className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'atFactory' ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.readyToDepart.length + vehicleStatus.returnedToFactory.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('atFactory')}</span>
+                        <div className="flex gap-2 mt-2 w-full justify-center">
+                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                                <PlayCircle size={10} /> {vehicleStatus.readyToDepart.length} {t('readyToDepart')}
+                            </span>
+                            <span className="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                                <Home size={10} /> {vehicleStatus.returnedToFactory.length} {t('returnedToFactory')}
+                            </span>
+                        </div>
                     </button>
 
                     <button
@@ -220,18 +265,13 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                         <span className="text-2xl font-bold text-gray-800">{vehicleStatus.inbound.length}</span>
                         <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('inbound')}</span>
                     </button>
-
-                    <button
-                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'returnedToFactory' ? null : 'returnedToFactory')}
-                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'returnedToFactory' ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
-                    >
-                        <Home className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'returnedToFactory' ? 'text-teal-600' : 'text-gray-500'}`} />
-                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.returnedToFactory.length}</span>
-                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('returnedToFactory')}</span>
-                    </button>
                 </div>
 
-                {selectedStatusFilter && (
+                {selectedStatusFilter && (() => {
+                    const filterData = selectedStatusFilter === 'atFactory'
+                        ? [...vehicleStatus.readyToDepart, ...vehicleStatus.returnedToFactory]
+                        : vehicleStatus[selectedStatusFilter] || [];
+                    return (
                     <div className="mt-4 border-t border-gray-100 pt-4">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm whitespace-nowrap">
@@ -244,26 +284,31 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {vehicleStatus[selectedStatusFilter].length > 0 ? (
-                                        vehicleStatus[selectedStatusFilter].map((tr) => (
+                                    {filterData.length > 0 ? (
+                                        filterData.map((tr) => {
+                                            const isIdle = tr.status === 'idle';
+                                            return (
                                             <tr key={tr.id} className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors`}>
-                                                <td className="py-3 px-4 font-medium text-gray-800">#{tr.id}</td>
+                                                <td className="py-3 px-4 font-medium text-gray-800">{isIdle ? `🚗 ${tr.car?.plate || '—'}` : `#${tr.id}`}</td>
                                                 <td className="py-3 px-4">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-                                                            {tr.driver ? tr.driver.username.charAt(0).toUpperCase() : '?'}
+                                                            {isIdle ? '—' : (tr.driver ? tr.driver.username.charAt(0).toUpperCase() : '?')}
                                                         </div>
-                                                        <span className="font-medium text-gray-700">{tr.driver ? tr.driver.username : t('unknown')}</span>
+                                                        <span className="font-medium text-gray-700">{isIdle ? t('idle') : (tr.driver ? tr.driver.username : t('unknown'))}</span>
                                                     </div>
                                                 </td>
-                                                <td className="py-3 px-4 text-gray-600">{formatSaudiDate(tr.start_date)}</td>
+                                                <td className="py-3 px-4 text-gray-600">{isIdle ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">{t('idle')}</span> : formatSaudiDate(tr.start_date)}</td>
                                                 <td className="py-3 px-4 text-right">
+                                                    {!isIdle && (
                                                     <button onClick={() => { setSelectedTrip(tr); setShowDetailsModal(true); }} className="text-blue-600 hover:text-blue-800 text-xs font-medium inline-flex items-center justify-end gap-1">
                                                         <Activity size={14} /> {t('viewDetails')}
                                                     </button>
+                                                    )}
                                                 </td>
                                             </tr>
-                                        ))
+                                            );
+                                        })
                                     ) : (
                                         <tr>
                                             <td colSpan="4" className="py-8 text-center text-gray-400">
@@ -275,7 +320,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                             </table>
                         </div>
                     </div>
-                )}
+                ); })()}
             </div>
 
             {/* ── Trip Time Tracking ── */}
