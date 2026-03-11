@@ -8,8 +8,15 @@ from io import BytesIO
 from .. import database, models, schemas
 from ..timezone import ensure_saudi_naive
 from .auth import get_current_user
+from ..services.backup import create_backup, restore_backup, get_backup_list
+from ..services.scheduler import update_backup_schedule
+import asyncio
+from fastapi.concurrency import run_in_threadpool
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Global lock to prevent concurrent mysqldump/restore operations
+backup_lock = asyncio.Lock()
 
 def check_admin(user: models.User):
     if user.role != models.UserRole.ADMIN:
@@ -320,3 +327,74 @@ def upload_logo(file: UploadFile = File(...), current_user: models.User = Depend
         shutil.copyfileobj(file.file, buffer)
         
     return {"url": "/static/logo.png"}
+
+# --- Backup Endpoints ---
+
+@router.get("/backups")
+def list_backups(current_user: models.User = Depends(get_current_user)):
+    check_admin(current_user)
+    try:
+        backups = get_backup_list()
+        return {"backups": backups}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/backups/create")
+async def trigger_backup(current_user: models.User = Depends(get_current_user)):
+    check_admin(current_user)
+    
+    if backup_lock.locked():
+        raise HTTPException(status_code=429, detail="A backup operation is already in progress. Please wait.")
+        
+    async with backup_lock:
+        try:
+            filename = await run_in_threadpool(create_backup)
+            return {"message": "Backup created successfully", "filename": filename}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/backups/restore/{filename}")
+async def trigger_restore(filename: str, current_user: models.User = Depends(get_current_user)):
+    check_admin(current_user)
+    
+    if backup_lock.locked():
+        raise HTTPException(status_code=429, detail="A backup or restore operation is already in progress. Please wait.")
+        
+    async with backup_lock:
+        try:
+            await run_in_threadpool(restore_backup, filename)
+            return {"message": f"Database restored from {filename} successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/backup-settings")
+def save_backup_settings(
+    settings: dict, 
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(database.get_db)
+):
+    check_admin(current_user)
+    
+    # settings = {"enabled": True/False, "time": "03:00"}
+    time_val = settings.get("time", "03:00")
+    enabled_val = "1" if settings.get("enabled", True) else "0"
+    
+    # Save to db
+    for key, value in [("backup_enabled", enabled_val), ("backup_time", time_val)]:
+        db_setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+        if db_setting:
+            db_setting.value = value
+        else:
+            db.add(models.SystemSetting(key=key, value=value))
+            
+    db.commit()
+    
+    # Update scheduler dynamically
+    h, m = map(int, time_val.split(":"))
+    try:
+        update_backup_schedule(hour=h, minute=m, is_enabled=(enabled_val == "1"))
+    except Exception as e:
+        print(f"Failed to dynamically update scheduler: {e}")
+        
+    return {"message": "Backup settings saved"}
+

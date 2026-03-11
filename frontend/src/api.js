@@ -182,4 +182,25 @@ export const uploadLogo = async (file) => {
     return response.data;
 };
 
+// --- Backups ---
+export const getBackups = async () => {
+    const res = await api.get('/admin/backups');
+    return res.data.backups;
+};
+
+export const createBackup = async () => {
+    const res = await api.post('/admin/backups/create');
+    return res.data;
+};
+
+export const restoreBackup = async (filename) => {
+    const res = await api.post(`/admin/backups/restore/${filename}`);
+    return res.data;
+};
+
+export const saveBackupSettings = async (settings) => {
+    const res = await api.post('/admin/backup-settings', settings);
+    return res.data;
+};
+
 export default api;

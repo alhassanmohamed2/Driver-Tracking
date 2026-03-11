@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo } from '../api';
+import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2 } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -22,75 +22,11 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
         return d.getTime() === today.getTime();
     }).length;
 
-    // ── Trips Over Time (last 30 days) ──
-    const tripsOverTime = useMemo(() => {
-        const days = {};
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0);
-            const key = d.toISOString().slice(0, 10);
-            days[key] = { date: key, label: `${d.getDate()}/${d.getMonth() + 1}`, completed: 0, in_progress: 0 };
-        }
-        trips.forEach(tr => {
-            const key = tr.start_date ? tr.start_date.slice(0, 10) : null;
-            if (key && days[key]) {
-                if (tr.status === 'completed') days[key].completed++;
-                else days[key].in_progress++;
-            }
-        });
-        return Object.values(days);
-    }, [trips]);
-
-    // ── Trips Per Driver ──
-    const tripsPerDriver = useMemo(() => {
-        const map = {};
-        drivers.forEach(d => { map[d.id] = { name: d.username, count: 0 }; });
-        trips.forEach(tr => { if (map[tr.driver_id]) map[tr.driver_id].count++; });
-        return Object.values(map).sort((a, b) => b.count - a.count);
-    }, [trips, drivers]);
-
     // ── Trip Status Breakdown ──
     const statusData = [
         { name: t('completedTrips'), value: completedTrips },
         { name: t('activeTrips'), value: activeTrips },
     ];
-
-    // ── Average Trip Duration (per driver) ──
-    const tripDurations = useMemo(() => {
-        const driverDurations = {};
-        drivers.forEach(d => { driverDurations[d.id] = { name: d.username, durations: [] }; });
-
-        trips.forEach(tr => {
-            if (tr.logs && tr.logs.length >= 2) {
-                const sorted = [...tr.logs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                const first = new Date(sorted[0].timestamp);
-                const last = new Date(sorted[sorted.length - 1].timestamp);
-                const diffMs = last - first;
-                if (diffMs > 0 && driverDurations[tr.driver_id]) {
-                    driverDurations[tr.driver_id].durations.push(diffMs);
-                }
-            }
-        });
-
-        const results = Object.values(driverDurations)
-            .filter(d => d.durations.length > 0)
-            .map(d => {
-                const avgMs = d.durations.reduce((a, b) => a + b, 0) / d.durations.length;
-                const avgH = Math.floor(avgMs / 3600000);
-                const avgM = Math.floor((avgMs % 3600000) / 60000);
-                return { name: d.name, avgH, avgM, tripCount: d.durations.length };
-            })
-            .sort((a, b) => (a.avgH * 60 + a.avgM) - (b.avgH * 60 + b.avgM));
-
-        // Overall average
-        const allDurations = Object.values(driverDurations).flatMap(d => d.durations);
-        let overallH = 0, overallM = 0;
-        if (allDurations.length > 0) {
-            const totalAvg = allDurations.reduce((a, b) => a + b, 0) / allDurations.length;
-            overallH = Math.floor(totalAvg / 3600000);
-            overallM = Math.floor((totalAvg % 3600000) / 60000);
-        }
-        return { perDriver: results, overallH, overallM };
-    }, [trips, drivers]);
 
     // ── Recent Activity (last 10 events across all trips) ──
     const recentActivity = useMemo(() => {
@@ -195,57 +131,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
     };
 
 
-    // ── Driver selector for city/duration charts ──
-    const [chartDriver, setChartDriver] = useState('');
 
-    // Helper: extract city from address (first comma part, e.g. "Al Badai, Al-Qassim Province, Saudi Arabia" → "Al Badai")
-    const extractCity = (address) => {
-        if (!address) return null;
-        const parts = address.split(',').map(p => p.trim()).filter(p => p.length > 0);
-        if (parts.length === 0) return null;
-        // Skip parts that are just numbers (street numbers)
-        const city = parts.find(p => !/^\d+$/.test(p));
-        return city || parts[0];
-    };
-
-    // ── City destinations per driver ──
-    const cityPerDriver = useMemo(() => {
-        const targetTrips = chartDriver ? trips.filter(tr => tr.driver_id === parseInt(chartDriver)) : trips;
-        const cityCount = {};
-        targetTrips.forEach(tr => {
-            const addr = tr.arrive_warehouse_address || tr.exit_factory_address || (tr.logs && tr.logs.length > 0 ? tr.logs[0].address : null);
-            const city = extractCity(addr);
-            if (city) {
-                cityCount[city] = (cityCount[city] || 0) + 1;
-            }
-        });
-        return Object.entries(cityCount)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count);
-    }, [trips, chartDriver]);
-
-    // ── Average trip duration per city ──
-    const avgDurationPerCity = useMemo(() => {
-        const targetTrips = chartDriver ? trips.filter(tr => tr.driver_id === parseInt(chartDriver)) : trips;
-        const cityData = {};
-        targetTrips.forEach(tr => {
-            if (tr.exit_factory_time && tr.arrive_factory_time) {
-                const startT = new Date(tr.exit_factory_time);
-                const endT = new Date(tr.arrive_factory_time);
-                const durationMin = Math.round((endT - startT) / 60000);
-                if (durationMin > 0) {
-                    const addr = tr.arrive_warehouse_address || tr.exit_factory_address || '';
-                    const city = extractCity(addr) || '—';
-                    if (!cityData[city]) cityData[city] = { total: 0, count: 0 };
-                    cityData[city].total += durationMin;
-                    cityData[city].count++;
-                }
-            }
-        });
-        return Object.entries(cityData)
-            .map(([name, d]) => ({ name, avgMin: Math.round(d.total / d.count), count: d.count }))
-            .sort((a, b) => b.avgMin - a.avgMin);
-    }, [trips, chartDriver]);
 
     const KPICard = ({ icon: Icon, label, value, color, bgColor, onClick }) => (
         <div
@@ -440,118 +326,10 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                 </div>
             </div>
 
-            {/* ── Charts Row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Trips Over Time */}
-                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
-                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsOverTime')}</h3>
-                    {totalTrips > 0 ? (
-                        <div dir="ltr">
-                            <ResponsiveContainer width="100%" height={280}>
-                                <BarChart data={tripsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={2} />
-                                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                                    <Tooltip />
-                                    <Bar dataKey="completed" name={t('completed')} stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                                    <Bar dataKey="in_progress" name={t('active')} stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    ) : (
-                        <div className="h-[280px] flex items-center justify-center text-gray-400">{t('noData')}</div>
-                    )}
-                </div>
-
-                {/* Trip Status Doughnut */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
-                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripStatusBreakdown')}</h3>
-                    {totalTrips > 0 ? (
-                        <div dir="ltr">
-                            <ResponsiveContainer width="100%" height={280}>
-                                <PieChart>
-                                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                                        {statusData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#3b82f6'} />
-                                        ))}
-                                    </Pie>
-                                    <Legend />
-                                    <Tooltip />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    ) : (
-                        <div className="h-[280px] flex items-center justify-center text-gray-400">{t('noData')}</div>
-                    )}
-                </div>
-            </div>
-
-            {/* ── Bottom Row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Trips Per Driver — Leaderboard */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
-                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4">{t('tripsPerDriver')}</h3>
-                    {tripsPerDriver.length > 0 ? (
-                        <div className="space-y-2 max-h-[320px] overflow-y-auto">
-                            {tripsPerDriver.map((d, i) => {
-                                const maxCount = tripsPerDriver[0].count;
-                                const pct = maxCount > 0 ? (d.count / maxCount) * 100 : 0;
-                                return (
-                                    <div key={i} className="flex items-center gap-3">
-                                        <span className="text-xs font-bold text-gray-400 w-5 text-center">{i + 1}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="text-sm font-medium text-gray-800 truncate">{d.name}</span>
-                                                <span className="text-sm font-bold text-gray-600 flex-shrink-0">{d.count}</span>
-                                            </div>
-                                            <div className="w-full bg-gray-100 rounded-full h-2">
-                                                <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
-                    )}
-                </div>
-
-                {/* Avg Trip Duration */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
-                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <Clock size={16} className="text-blue-500" /> {t('avgTripDuration')}
-                    </h3>
-                    {tripDurations.perDriver.length > 0 ? (
-                        <div className="space-y-3">
-                            {/* Overall avg */}
-                            <div className="bg-blue-50 rounded-lg p-3 flex justify-between items-center">
-                                <span className="text-sm font-bold text-blue-800">{t('overallAvg')}</span>
-                                <span className="text-lg font-bold text-blue-600">
-                                    {tripDurations.overallH > 0 && `${tripDurations.overallH} ${t('hours')} `}{tripDurations.overallM} {t('minutes')}
-                                </span>
-                            </div>
-                            <div className="space-y-2 max-h-[250px] overflow-y-auto">
-                                {tripDurations.perDriver.map((d, i) => (
-                                    <div key={i} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-                                        <div>
-                                            <span className="text-sm font-medium text-gray-800">{d.name}</span>
-                                            <span className="text-xs text-gray-400 ml-2">({d.tripCount} {t('tripCount')})</span>
-                                        </div>
-                                        <span className="text-sm font-bold text-gray-600">
-                                            {d.avgH > 0 && `${d.avgH}${isRtl ? ' ' : ''}h `}{d.avgM}m
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
-                    )}
-                </div>
-
+            {/* ── Additional Analytics ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 md:gap-6">
                 {/* Recent Activity */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 mb-6">
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <Activity size={16} className="text-green-500" /> {t('recentActivity')}
                     </h3>
@@ -575,70 +353,6 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                         <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
                     )}
                 </div>
-            </div>
-
-            {/* ── City & Duration Charts ── */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
-                {/* Driver Selector */}
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <h3 className="text-sm md:text-base font-bold text-gray-800">{t('cityDestinations')}</h3>
-                    <select
-                        value={chartDriver}
-                        onChange={(e) => setChartDriver(e.target.value)}
-                        className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                        <option value="">{t('allDrivers')}</option>
-                        {drivers.map(d => <option key={d.id} value={d.id}>{d.username}</option>)}
-                    </select>
-                </div>
-                {cityPerDriver.length > 0 ? (
-                    <div dir="ltr">
-                        <ResponsiveContainer width="100%" height={Math.max(200, cityPerDriver.length * 40)}>
-                            <BarChart data={cityPerDriver} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                                <Tooltip />
-                                <Bar dataKey="count" name={t('tripCount')} radius={[0, 6, 6, 0]}>
-                                    {cityPerDriver.map((_, i) => (
-                                        <Cell key={`city-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
-                )}
-            </div>
-
-            {/* Avg Duration Per City */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
-                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Clock size={16} className="text-indigo-500" /> {t('tripDurationByCity')}
-                </h3>
-                {avgDurationPerCity.length > 0 ? (
-                    <div dir="ltr">
-                        <ResponsiveContainer width="100%" height={Math.max(200, avgDurationPerCity.length * 45)}>
-                            <BarChart data={avgDurationPerCity} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                <XAxis type="number" tick={{ fontSize: 11 }} />
-                                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                                <Tooltip formatter={(value, name, props) => {
-                                    const item = props.payload;
-                                    return [`${value} ${t('minutes')} (${item.count} ${t('tripCount')})`, t('avgTripDuration')];
-                                }} />
-                                <Bar dataKey="avgMin" name={t('avgTripDuration')} radius={[0, 6, 6, 0]}>
-                                    {avgDurationPerCity.map((_, i) => (
-                                        <Cell key={`avgcity-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
-                )}
             </div>
         </div>
     );
@@ -671,8 +385,13 @@ const AdminDashboard = () => {
 
     // Settings Modal State
     const [showSettingsForm, setShowSettingsForm] = useState(false);
+    const [settingsTab, setSettingsTab] = useState('general'); // 'general' or 'backups'
     const [brandingForm, setBrandingForm] = useState({ companyName: '' });
     const [logoFile, setLogoFile] = useState(null);
+
+    // Backup State
+    const [backups, setBackups] = useState([]);
+    const [backupSettings, setBackupSettings] = useState({ enabled: true, time: "03:00" });
 
     // Trip Edit Form State
     const [showTripEditForm, setShowTripEditForm] = useState(false);
@@ -693,6 +412,7 @@ const AdminDashboard = () => {
         fetchDrivers();
         fetchCars();
         fetchSettings();
+        fetchBackups();
     }, []);
 
     const fetchSettings = async () => {
@@ -703,7 +423,15 @@ const AdminDashboard = () => {
                 logoUrl: data.company_logo ? `${data.company_logo}?t=${new Date().getTime()}` : ''
             });
             setBrandingForm({ companyName: data.company_name || '' });
+            setBackupSettings({
+                enabled: data.backup_enabled !== "0",
+                time: data.backup_time || "03:00"
+            });
         } catch (err) { console.error(err); }
+    };
+
+    const fetchBackups = async () => {
+        try { setBackups(await getBackups()); } catch (err) { console.error(err); }
     };
 
     const fetchTrips = async () => {
@@ -736,6 +464,58 @@ const AdminDashboard = () => {
             setShowSettingsForm(false);
         } catch (err) {
             setMessage(t('failedUpdateSettings'));
+        }
+    };
+
+    const handleSaveBackupSettings = async (e) => {
+        e.preventDefault();
+        setMessage('');
+        try {
+            await saveBackupSettings(backupSettings);
+            setMessage(t('settingsUpdated') || 'Backup settings saved');
+        } catch (err) {
+            setMessage(t('failedUpdateSettings') || 'Failed to save settings');
+        }
+    };
+    const [isBackingUp, setIsBackingUp] = useState(false);
+
+    const handleCreateBackup = async () => {
+        setMessage('');
+        setIsBackingUp(true);
+        try {
+            await createBackup();
+            setMessage(t('settingsUpdated') || 'Backup created successfully');
+            fetchBackups();
+        } catch (err) {
+            const errorMsg = err.response && err.response.data && err.response.data.detail
+                ? err.response.data.detail
+                : err.message || 'Failed to create backup';
+            setMessage(`Failed: ${errorMsg}`);
+        } finally {
+            setIsBackingUp(false);
+        }
+    };
+
+    const [isRestoring, setIsRestoring] = useState(false);
+
+    const handleRestoreBackup = async (filename) => {
+        if (window.confirm(`Are you sure you want to restore ${filename}? This will OVERWRITE the current database and cannot be undone.`)) {
+            setMessage('');
+            setIsRestoring(true);
+            try {
+                await restoreBackup(filename);
+                setMessage(`Database restored from ${filename} successfully`);
+                fetchTrips();
+                fetchDrivers();
+                fetchCars();
+            } catch (err) {
+                const errorMsg = err.response && err.response.data && err.response.data.detail
+                    ? err.response.data.detail
+                    : err.message || `Failed to restore backup ${filename}`;
+                setMessage(`Failed: ${errorMsg}`);
+            } finally {
+                setIsRestoring(false);
+            }
         }
     };
 
@@ -1074,21 +854,102 @@ const AdminDashboard = () => {
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative">
                             <button onClick={() => setShowSettingsForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Settings className="w-5 h-5" /> {t('companySettings')}</h3>
-                            <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('companyNameLabel')}</label>
-                                    <input type="text" required className="w-full px-4 py-2 border rounded-lg" value={brandingForm.companyName} onChange={e => setBrandingForm({ ...brandingForm, companyName: e.target.value })} placeholder={t('companyNameLabel')} />
+
+                            {/* Settings Modal Header & Tabs */}
+                            <div className="mb-4">
+                                <h3 className="text-lg font-bold flex items-center gap-2"><Settings className="w-5 h-5" /> {t('companySettings')}</h3>
+                                <div className="flex gap-4 mt-3 border-b pb-2">
+                                    <button
+                                        className={`pb-1 font-medium text-sm md:text-base ${settingsTab === 'general' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        onClick={() => setSettingsTab('general')}
+                                    >
+                                        General Setup
+                                    </button>
+                                    <button
+                                        className={`pb-1 font-medium text-sm md:text-base ${settingsTab === 'backups' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        onClick={() => setSettingsTab('backups')}
+                                    >
+                                        Database Backups
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('logo')}</label>
-                                    <div className="flex items-center gap-2">
-                                        <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files[0])} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                            </div>
+
+                            {/* General Tab */}
+                            {settingsTab === 'general' && (
+                                <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('companyNameLabel')}</label>
+                                        <input type="text" required className="w-full px-4 py-2 border rounded-lg" value={brandingForm.companyName} onChange={e => setBrandingForm({ ...brandingForm, companyName: e.target.value })} placeholder={t('companyNameLabel')} />
                                     </div>
-                                    {settings.logoUrl && <div className="mt-2"><span className="text-xs text-gray-500">{t('currentLogo')}</span> <img src={settings.logoUrl} alt="Current" className="h-8 inline-block ml-2" /></div>}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('logo')}</label>
+                                        <div className="flex items-center gap-2">
+                                            <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files[0])} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                                        </div>
+                                        {settings.logoUrl && <div className="mt-2"><span className="text-xs text-gray-500">{t('currentLogo')}</span> <img src={settings.logoUrl} alt="Current" className="h-8 inline-block ml-2" /></div>}
+                                    </div>
+                                    <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">{t('saveSettings')}</button>
+                                </form>
+                            )}
+
+                            {/* Backups Tab */}
+                            {settingsTab === 'backups' && (
+                                <div className="flex flex-col gap-6">
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex flex-col gap-3">
+                                        <h4 className="font-bold text-blue-800 flex items-center gap-2"><Clock className="w-4 h-4" /> Automated Backups</h4>
+                                        <p className="text-xs md:text-sm text-blue-700">The system automatically keeps the latest 2 database backups.</p>
+                                        <div className="flex items-center gap-4 mt-1">
+                                            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                                <input type="checkbox" checked={backupSettings.enabled} onChange={e => setBackupSettings({ ...backupSettings, enabled: e.target.checked })} className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
+                                                Enable Auto-Backup
+                                            </label>
+                                            {backupSettings.enabled && (
+                                                <input type="time" value={backupSettings.time} onChange={e => setBackupSettings({ ...backupSettings, time: e.target.value })} className="border border-blue-200 rounded px-2 py-1 text-sm bg-white focus:outline-blue-500" />
+                                            )}
+                                        </div>
+                                        <button onClick={handleSaveBackupSettings} className="place-self-start px-4 py-1.5 mt-1 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 shadow-sm transition">Save Schedule</button>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="font-bold text-gray-800 flex items-center gap-2"><Database className="w-4 h-4" /> Backup History</h4>
+                                            <button
+                                                onClick={handleCreateBackup}
+                                                disabled={isBackingUp || isRestoring}
+                                                className={`px-3 py-1.5 ${isBackingUp ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-xs font-bold rounded flex items-center gap-1 transition shadow-sm`}
+                                            >
+                                                {isBackingUp ? <span className="animate-spin"><RotateCcw className="w-3 h-3" /></span> : <CheckCircle2 className="w-3 h-3" />}
+                                                {isBackingUp ? 'Creating...' : 'Create Now'}
+                                            </button>
+                                        </div>
+                                        <div className="border rounded-lg max-h-56 overflow-y-auto bg-white shadow-inner">
+                                            {backups.length === 0 ? (
+                                                <div className="p-6 text-center text-sm text-gray-400 font-medium">No backups found. Run "Create Now" to generate one.</div>
+                                            ) : (
+                                                <ul className="divide-y border-t border-gray-100">
+                                                    {backups.map(b => (
+                                                        <li key={b.filename} className="p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
+                                                            <div>
+                                                                <div className="text-sm font-bold text-gray-700">{b.filename}</div>
+                                                                <div className="text-xs font-mono text-gray-500 mt-0.5">{new Date(b.created_at).toLocaleString()} &bull; {b.size_mb} MB</div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleRestoreBackup(b.filename)}
+                                                                disabled={isBackingUp || isRestoring}
+                                                                className={`text-xs px-2 py-1.5 ${isRestoring ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300'} border shadow-sm rounded flex items-center gap-1 font-medium transition`}
+                                                                title="Restore this backup"
+                                                            >
+                                                                <RotateCcw className={`w-3 h-3 ${isRestoring ? 'animate-spin' : ''}`} />
+                                                                {isRestoring ? 'Wait...' : 'Restore'}
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                                <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">{t('saveSettings')}</button>
-                            </form>
+                            )}
                         </div>
                     </div>
                 )}

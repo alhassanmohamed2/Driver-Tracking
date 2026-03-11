@@ -71,3 +71,9 @@ def startup_event():
         db.commit()
     finally:
         db.close()
+
+    try:
+        from .services.scheduler import init_scheduler
+        init_scheduler()
+    except Exception as e:
+        print(f"Failed to initialize backup scheduler: {e}")
