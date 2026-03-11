@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo } from '../api';
+import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2 } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -385,8 +385,13 @@ const AdminDashboard = () => {
 
     // Settings Modal State
     const [showSettingsForm, setShowSettingsForm] = useState(false);
+    const [settingsTab, setSettingsTab] = useState('general'); // 'general' or 'backups'
     const [brandingForm, setBrandingForm] = useState({ companyName: '' });
     const [logoFile, setLogoFile] = useState(null);
+
+    // Backup State
+    const [backups, setBackups] = useState([]);
+    const [backupSettings, setBackupSettings] = useState({ enabled: true, time: "03:00" });
 
     // Trip Edit Form State
     const [showTripEditForm, setShowTripEditForm] = useState(false);
@@ -407,6 +412,7 @@ const AdminDashboard = () => {
         fetchDrivers();
         fetchCars();
         fetchSettings();
+        fetchBackups();
     }, []);
 
     const fetchSettings = async () => {
@@ -417,7 +423,15 @@ const AdminDashboard = () => {
                 logoUrl: data.company_logo ? `${data.company_logo}?t=${new Date().getTime()}` : ''
             });
             setBrandingForm({ companyName: data.company_name || '' });
+            setBackupSettings({
+                enabled: data.backup_enabled !== "0",
+                time: data.backup_time || "03:00"
+            });
         } catch (err) { console.error(err); }
+    };
+
+    const fetchBackups = async () => {
+        try { setBackups(await getBackups()); } catch (err) { console.error(err); }
     };
 
     const fetchTrips = async () => {
@@ -450,6 +464,58 @@ const AdminDashboard = () => {
             setShowSettingsForm(false);
         } catch (err) {
             setMessage(t('failedUpdateSettings'));
+        }
+    };
+
+    const handleSaveBackupSettings = async (e) => {
+        e.preventDefault();
+        setMessage('');
+        try {
+            await saveBackupSettings(backupSettings);
+            setMessage(t('settingsUpdated') || 'Backup settings saved');
+        } catch (err) {
+            setMessage(t('failedUpdateSettings') || 'Failed to save settings');
+        }
+    };
+    const [isBackingUp, setIsBackingUp] = useState(false);
+
+    const handleCreateBackup = async () => {
+        setMessage('');
+        setIsBackingUp(true);
+        try {
+            await createBackup();
+            setMessage(t('settingsUpdated') || 'Backup created successfully');
+            fetchBackups();
+        } catch (err) {
+            const errorMsg = err.response && err.response.data && err.response.data.detail
+                ? err.response.data.detail
+                : err.message || 'Failed to create backup';
+            setMessage(`Failed: ${errorMsg}`);
+        } finally {
+            setIsBackingUp(false);
+        }
+    };
+
+    const [isRestoring, setIsRestoring] = useState(false);
+
+    const handleRestoreBackup = async (filename) => {
+        if (window.confirm(`Are you sure you want to restore ${filename}? This will OVERWRITE the current database and cannot be undone.`)) {
+            setMessage('');
+            setIsRestoring(true);
+            try {
+                await restoreBackup(filename);
+                setMessage(`Database restored from ${filename} successfully`);
+                fetchTrips();
+                fetchDrivers();
+                fetchCars();
+            } catch (err) {
+                const errorMsg = err.response && err.response.data && err.response.data.detail
+                    ? err.response.data.detail
+                    : err.message || `Failed to restore backup ${filename}`;
+                setMessage(`Failed: ${errorMsg}`);
+            } finally {
+                setIsRestoring(false);
+            }
         }
     };
 
@@ -788,21 +854,102 @@ const AdminDashboard = () => {
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative">
                             <button onClick={() => setShowSettingsForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Settings className="w-5 h-5" /> {t('companySettings')}</h3>
-                            <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('companyNameLabel')}</label>
-                                    <input type="text" required className="w-full px-4 py-2 border rounded-lg" value={brandingForm.companyName} onChange={e => setBrandingForm({ ...brandingForm, companyName: e.target.value })} placeholder={t('companyNameLabel')} />
+
+                            {/* Settings Modal Header & Tabs */}
+                            <div className="mb-4">
+                                <h3 className="text-lg font-bold flex items-center gap-2"><Settings className="w-5 h-5" /> {t('companySettings')}</h3>
+                                <div className="flex gap-4 mt-3 border-b pb-2">
+                                    <button
+                                        className={`pb-1 font-medium text-sm md:text-base ${settingsTab === 'general' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        onClick={() => setSettingsTab('general')}
+                                    >
+                                        General Setup
+                                    </button>
+                                    <button
+                                        className={`pb-1 font-medium text-sm md:text-base ${settingsTab === 'backups' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        onClick={() => setSettingsTab('backups')}
+                                    >
+                                        Database Backups
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('logo')}</label>
-                                    <div className="flex items-center gap-2">
-                                        <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files[0])} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                            </div>
+
+                            {/* General Tab */}
+                            {settingsTab === 'general' && (
+                                <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('companyNameLabel')}</label>
+                                        <input type="text" required className="w-full px-4 py-2 border rounded-lg" value={brandingForm.companyName} onChange={e => setBrandingForm({ ...brandingForm, companyName: e.target.value })} placeholder={t('companyNameLabel')} />
                                     </div>
-                                    {settings.logoUrl && <div className="mt-2"><span className="text-xs text-gray-500">{t('currentLogo')}</span> <img src={settings.logoUrl} alt="Current" className="h-8 inline-block ml-2" /></div>}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('logo')}</label>
+                                        <div className="flex items-center gap-2">
+                                            <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files[0])} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                                        </div>
+                                        {settings.logoUrl && <div className="mt-2"><span className="text-xs text-gray-500">{t('currentLogo')}</span> <img src={settings.logoUrl} alt="Current" className="h-8 inline-block ml-2" /></div>}
+                                    </div>
+                                    <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">{t('saveSettings')}</button>
+                                </form>
+                            )}
+
+                            {/* Backups Tab */}
+                            {settingsTab === 'backups' && (
+                                <div className="flex flex-col gap-6">
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex flex-col gap-3">
+                                        <h4 className="font-bold text-blue-800 flex items-center gap-2"><Clock className="w-4 h-4" /> Automated Backups</h4>
+                                        <p className="text-xs md:text-sm text-blue-700">The system automatically keeps the latest 2 database backups.</p>
+                                        <div className="flex items-center gap-4 mt-1">
+                                            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                                <input type="checkbox" checked={backupSettings.enabled} onChange={e => setBackupSettings({ ...backupSettings, enabled: e.target.checked })} className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4" />
+                                                Enable Auto-Backup
+                                            </label>
+                                            {backupSettings.enabled && (
+                                                <input type="time" value={backupSettings.time} onChange={e => setBackupSettings({ ...backupSettings, time: e.target.value })} className="border border-blue-200 rounded px-2 py-1 text-sm bg-white focus:outline-blue-500" />
+                                            )}
+                                        </div>
+                                        <button onClick={handleSaveBackupSettings} className="place-self-start px-4 py-1.5 mt-1 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 shadow-sm transition">Save Schedule</button>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h4 className="font-bold text-gray-800 flex items-center gap-2"><Database className="w-4 h-4" /> Backup History</h4>
+                                            <button
+                                                onClick={handleCreateBackup}
+                                                disabled={isBackingUp || isRestoring}
+                                                className={`px-3 py-1.5 ${isBackingUp ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'} text-white text-xs font-bold rounded flex items-center gap-1 transition shadow-sm`}
+                                            >
+                                                {isBackingUp ? <span className="animate-spin"><RotateCcw className="w-3 h-3" /></span> : <CheckCircle2 className="w-3 h-3" />}
+                                                {isBackingUp ? 'Creating...' : 'Create Now'}
+                                            </button>
+                                        </div>
+                                        <div className="border rounded-lg max-h-56 overflow-y-auto bg-white shadow-inner">
+                                            {backups.length === 0 ? (
+                                                <div className="p-6 text-center text-sm text-gray-400 font-medium">No backups found. Run "Create Now" to generate one.</div>
+                                            ) : (
+                                                <ul className="divide-y border-t border-gray-100">
+                                                    {backups.map(b => (
+                                                        <li key={b.filename} className="p-3 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
+                                                            <div>
+                                                                <div className="text-sm font-bold text-gray-700">{b.filename}</div>
+                                                                <div className="text-xs font-mono text-gray-500 mt-0.5">{new Date(b.created_at).toLocaleString()} &bull; {b.size_mb} MB</div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleRestoreBackup(b.filename)}
+                                                                disabled={isBackingUp || isRestoring}
+                                                                className={`text-xs px-2 py-1.5 ${isRestoring ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'bg-white text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300'} border shadow-sm rounded flex items-center gap-1 font-medium transition`}
+                                                                title="Restore this backup"
+                                                            >
+                                                                <RotateCcw className={`w-3 h-3 ${isRestoring ? 'animate-spin' : ''}`} />
+                                                                {isRestoring ? 'Wait...' : 'Restore'}
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                                <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">{t('saveSettings')}</button>
-                            </form>
+                            )}
                         </div>
                     </div>
                 )}
