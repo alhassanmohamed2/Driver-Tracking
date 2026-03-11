@@ -45,6 +45,7 @@ def create_backup() -> str:
         f"-u{DB_USER}",
         f"-p{DB_PASS}",
         "--skip-ssl",
+        "--single-transaction",
         DB_NAME
     ]
     

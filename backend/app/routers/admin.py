@@ -10,8 +10,13 @@ from ..timezone import ensure_saudi_naive
 from .auth import get_current_user
 from ..services.backup import create_backup, restore_backup, get_backup_list
 from ..services.scheduler import update_backup_schedule
+import asyncio
+from fastapi.concurrency import run_in_threadpool
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Global lock to prevent concurrent mysqldump/restore operations
+backup_lock = asyncio.Lock()
 
 def check_admin(user: models.User):
     if user.role != models.UserRole.ADMIN:
@@ -335,22 +340,32 @@ def list_backups(current_user: models.User = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/backups/create")
-def trigger_backup(current_user: models.User = Depends(get_current_user)):
+async def trigger_backup(current_user: models.User = Depends(get_current_user)):
     check_admin(current_user)
-    try:
-        filename = create_backup()
-        return {"message": "Backup created successfully", "filename": filename}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    if backup_lock.locked():
+        raise HTTPException(status_code=429, detail="A backup operation is already in progress. Please wait.")
+        
+    async with backup_lock:
+        try:
+            filename = await run_in_threadpool(create_backup)
+            return {"message": "Backup created successfully", "filename": filename}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/backups/restore/{filename}")
-def trigger_restore(filename: str, current_user: models.User = Depends(get_current_user)):
+async def trigger_restore(filename: str, current_user: models.User = Depends(get_current_user)):
     check_admin(current_user)
-    try:
-        restore_backup(filename)
-        return {"message": f"Database restored from {filename} successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    if backup_lock.locked():
+        raise HTTPException(status_code=429, detail="A backup or restore operation is already in progress. Please wait.")
+        
+    async with backup_lock:
+        try:
+            await run_in_threadpool(restore_backup, filename)
+            return {"message": f"Database restored from {filename} successfully"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/backup-settings")
 def save_backup_settings(
