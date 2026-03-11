@@ -53,22 +53,59 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
         const outbound = [];
         const inbound = [];
 
-        trips.filter(tr => tr.status === 'in_progress').forEach(tr => {
-            if (!tr.logs || tr.logs.length === 0) {
-                readyToDepart.push(tr);
-            } else {
+        // Build a map: car_plate -> latest in_progress trip state
+        const activeTrips = trips.filter(tr => tr.status === 'in_progress');
+        const carTripMap = {};
+
+        activeTrips.forEach(tr => {
+            const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
+            if (!plate) return;
+
+            let state = 'ready'; // default: no logs = ready to depart
+            if (tr.logs && tr.logs.length > 0) {
                 const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                const latestState = sortedLogs[0].state;
-                if (latestState === 'Arrival at Factory') returnedToFactory.push(tr);
-                else if (latestState === 'Exit Factory') outbound.push(tr);
-                else if (latestState === 'Arrival at Warehouse') atWarehouse.push(tr);
-                else if (latestState === 'Exit Warehouse') inbound.push(tr);
+                state = sortedLogs[0].state;
+            }
+            carTripMap[plate] = { trip: tr, state };
+        });
+
+        // Iterate over ALL registered cars
+        cars.forEach(car => {
+            const entry = carTripMap[car.plate];
+            if (!entry) {
+                // Car has no active trip → at factory, ready to depart
+                readyToDepart.push({ id: `car-${car.id}`, car, driver: null, status: 'idle' });
+            } else {
+                const { trip, state } = entry;
+                if (state === 'ready') readyToDepart.push(trip);
+                else if (state === 'Arrival at Factory') returnedToFactory.push(trip);
+                else if (state === 'Exit Factory') outbound.push(trip);
+                else if (state === 'Arrival at Warehouse') atWarehouse.push(trip);
+                else if (state === 'Exit Warehouse') inbound.push(trip);
+                else readyToDepart.push(trip);
+            }
+        });
+
+        // Also handle trips whose driver has no car (edge case like mzada with NULL plate)
+        activeTrips.forEach(tr => {
+            const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
+            if (!plate) {
+                let state = 'ready';
+                if (tr.logs && tr.logs.length > 0) {
+                    const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    state = sortedLogs[0].state;
+                }
+                if (state === 'ready') readyToDepart.push(tr);
+                else if (state === 'Arrival at Factory') returnedToFactory.push(tr);
+                else if (state === 'Exit Factory') outbound.push(tr);
+                else if (state === 'Arrival at Warehouse') atWarehouse.push(tr);
+                else if (state === 'Exit Warehouse') inbound.push(tr);
                 else readyToDepart.push(tr);
             }
         });
 
         return { readyToDepart, returnedToFactory, atWarehouse, outbound, inbound };
-    }, [trips]);
+    }, [trips, cars]);
 
     const [selectedStatusFilter, setSelectedStatusFilter] = useState(null);
 
