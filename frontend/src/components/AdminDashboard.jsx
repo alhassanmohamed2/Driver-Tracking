@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -47,26 +47,27 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
 
     // ── Vehicle Status Dashboard ──
     const vehicleStatus = useMemo(() => {
-        const atFactory = [];
+        const readyToDepart = [];
+        const returnedToFactory = [];
         const atWarehouse = [];
         const outbound = [];
         const inbound = [];
 
         trips.filter(tr => tr.status === 'in_progress').forEach(tr => {
             if (!tr.logs || tr.logs.length === 0) {
-                atFactory.push(tr);
+                readyToDepart.push(tr);
             } else {
                 const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 const latestState = sortedLogs[0].state;
-                if (latestState === 'Arrival at Factory') atFactory.push(tr);
+                if (latestState === 'Arrival at Factory') returnedToFactory.push(tr);
                 else if (latestState === 'Exit Factory') outbound.push(tr);
                 else if (latestState === 'Arrival at Warehouse') atWarehouse.push(tr);
                 else if (latestState === 'Exit Warehouse') inbound.push(tr);
-                else atFactory.push(tr);
+                else readyToDepart.push(tr);
             }
         });
 
-        return { atFactory, atWarehouse, outbound, inbound };
+        return { readyToDepart, returnedToFactory, atWarehouse, outbound, inbound };
     }, [trips]);
 
     const [selectedStatusFilter, setSelectedStatusFilter] = useState(null);
@@ -183,14 +184,14 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     )}
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                     <button
-                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'atFactory' ? null : 'atFactory')}
-                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'atFactory' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'readyToDepart' ? null : 'readyToDepart')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'readyToDepart' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
                     >
-                        <MapPin className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'atFactory' ? 'text-blue-600' : 'text-gray-500'}`} />
-                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.atFactory.length}</span>
-                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('atFactory')}</span>
+                        <PlayCircle className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'readyToDepart' ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.readyToDepart.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('readyToDepart')}</span>
                     </button>
 
                     <button
@@ -218,6 +219,15 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                         <Truck className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'inbound' ? 'text-green-600 transform scale-x-[-1]' : 'text-gray-500 transform scale-x-[-1]'}`} />
                         <span className="text-2xl font-bold text-gray-800">{vehicleStatus.inbound.length}</span>
                         <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('inbound')}</span>
+                    </button>
+
+                    <button
+                        onClick={() => setSelectedStatusFilter(selectedStatusFilter === 'returnedToFactory' ? null : 'returnedToFactory')}
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center transition-all ${selectedStatusFilter === 'returnedToFactory' ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-200' : 'border-gray-100 bg-gray-50 hover:bg-gray-100 hover:border-gray-200'}`}
+                    >
+                        <Home className={`w-6 h-6 mb-2 ${selectedStatusFilter === 'returnedToFactory' ? 'text-teal-600' : 'text-gray-500'}`} />
+                        <span className="text-2xl font-bold text-gray-800">{vehicleStatus.returnedToFactory.length}</span>
+                        <span className="text-xs font-medium text-gray-500 text-center mt-1">{t('returnedToFactory')}</span>
                     </button>
                 </div>
 
