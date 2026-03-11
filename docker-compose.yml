@@ -3,10 +3,10 @@ services:
     image: mysql:8.0
     restart: always
     environment:
-      MYSQL_DATABASE: trips_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       TZ: Asia/Riyadh
     volumes:
       - db_data:/var/lib/mysql
@@ -20,8 +20,10 @@ services:
     restart: always
     ports:
       - "8002:8000"
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: mysql+mysqlconnector://user:password@db/trips_db
+      DATABASE_URL: ${DATABASE_URL}
       TZ: Asia/Riyadh
     depends_on:
       db:
