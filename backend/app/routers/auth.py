@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from .. import database, models, schemas
+import os
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-SECRET_KEY = "supersecretkey" # In production, use envar
+SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey") # Pulled from .env
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 43200  # 30 days
 
