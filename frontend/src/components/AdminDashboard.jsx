@@ -10,7 +10,7 @@ const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#e
 // ══════════════════════════════════════════════════════════════
 // DashboardView — Analytics Sub-component
 // ══════════════════════════════════════════════════════════════
-const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setViewMode, setStatusFilter, setDateFrom, setDateTo }) => {
+const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setViewMode, setStatusFilter, setDateFrom, setDateTo, setSelectedTrip, setShowDetailsModal }) => {
 
     // ── KPI Calculations ──
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -129,13 +129,16 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                 const now = new Date();
 
                 if (tExitFactory) {
-                    departureTime = ((tArriveWarehouse || now) - tExitFactory) / 60000;
+                    const diff = ((tArriveWarehouse || now) - tExitFactory) / 60000;
+                    departureTime = diff > 0 ? diff : 0;
                 }
                 if (tArriveWarehouse) {
-                    waitingTime = ((tExitWarehouse || now) - tArriveWarehouse) / 60000;
+                    const diff = ((tExitWarehouse || now) - tArriveWarehouse) / 60000;
+                    waitingTime = diff > 0 ? diff : 0;
                 }
                 if (tExitWarehouse) {
-                    returnTime = ((tArriveFactory || now) - tExitWarehouse) / 60000;
+                    const diff = ((tArriveFactory || now) - tExitWarehouse) / 60000;
+                    returnTime = diff > 0 ? diff : 0;
                 }
             }
 
@@ -1211,7 +1214,7 @@ const AdminDashboard = () => {
                 )}
 
                 {/* ═══ ANALYTICS DASHBOARD ═══ */}
-                {viewMode === 'dashboard' && <DashboardView trips={trips} drivers={drivers} cars={cars} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} setViewMode={setViewMode} setStatusFilter={setStatusFilter} setDateFrom={setDateFrom} setDateTo={setDateTo} />}
+                {viewMode === 'dashboard' && <DashboardView trips={trips} drivers={drivers} cars={cars} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} setViewMode={setViewMode} setStatusFilter={setStatusFilter} setDateFrom={setDateFrom} setDateTo={setDateTo} setSelectedTrip={setSelectedTrip} setShowDetailsModal={setShowDetailsModal} />}
 
                 {/* ═══ TRIPS TABLE ═══ */}
                 {viewMode === 'trips' && (
