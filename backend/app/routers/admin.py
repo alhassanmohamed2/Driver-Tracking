@@ -96,18 +96,21 @@ def update_driver(driver_id: int, user: schemas.UserUpdate, current_user: models
     if not db_user:
         raise HTTPException(status_code=404, detail="Driver not found")
     
-    if user.username:
-        existing = db.query(models.User).filter(models.User.username == user.username).first()
+    update_data = user.dict(exclude_unset=True)
+    
+    if "username" in update_data:
+        new_username = update_data["username"]
+        existing = db.query(models.User).filter(models.User.username == new_username).first()
         if existing and existing.id != driver_id:
              raise HTTPException(status_code=400, detail="Username already taken")
-        db_user.username = user.username
+        db_user.username = new_username
         
-    if user.car_id is not None:
-        db_user.car_id = user.car_id
+    if "car_id" in update_data:
+        db_user.car_id = update_data["car_id"]
         
-    if user.password:
+    if "password" in update_data:
         from .auth import get_password_hash
-        db_user.hashed_password = get_password_hash(user.password)
+        db_user.hashed_password = get_password_hash(update_data["password"])
         
     db.commit()
     db.refresh(db_user)
