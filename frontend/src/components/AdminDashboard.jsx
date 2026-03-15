@@ -145,9 +145,9 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
             }
 
             let totalTripTime = null;
-            // Trip total is only complete if it reached the factory.
-            // But we show the running total for active trips too.
             if (departureTime !== null) {
+                // Total trip time is the sum of loaded travel + waiting + returning.
+                // It should be fixed once tArriveFactory exists.
                 totalTripTime = (departureTime || 0) + (waitingTime || 0) + (returnTime || 0);
             }
 
@@ -295,8 +295,8 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                         <th className="py-3 px-4 font-medium">{t('timeToWarehouse')}</th>
                                         <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
                                         <th className="py-3 px-4 font-medium">{t('timeToReturn')}</th>
-                                        <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
                                         {selectedStatusFilter === 'atFactory' && <th className="py-3 px-4 font-medium text-blue-600 italic">{t('timeAtFactory')}</th>}
+                                        <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
                                         <th className="py-3 px-4 rounded-r-lg font-medium text-right">{t('actions')}</th>
                                         </tr>
                                         </thead>
