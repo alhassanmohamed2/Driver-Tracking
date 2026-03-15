@@ -351,15 +351,30 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                             <table className="w-full text-left text-sm whitespace-nowrap">
                                 <thead>
                                     <tr className="bg-gray-50 text-gray-500">
-                                        <th className="py-3 px-4 rounded-l-lg font-medium">{t('tripId')}</th>
-                                        <th className="py-3 px-4 font-medium">{t('driver')}</th>
-                                        <th className="py-3 px-4 font-medium">{t('timeToWarehouse')}</th>
-                                        <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
-                                        <th className="py-3 px-4 font-medium">{t('timeToReturn')}</th>
-                                        {selectedStatusFilter === 'atFactory' && <th className="py-3 px-4 font-medium text-blue-600 italic">{t('timeAtFactory')}</th>}
-                                        <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
+                                        <th className="py-3 px-4 rounded-l-lg font-medium">
+                                            {selectedStatusFilter === 'atFactory' ? t('carPlate') : t('tripId')}
+                                        </th>
+                                        <th className="py-3 px-4 font-medium">
+                                            {selectedStatusFilter === 'atFactory' ? t('status') : t('driver')}
+                                        </th>
+                                        {selectedStatusFilter !== 'atFactory' && (
+                                            <>
+                                                <th className="py-3 px-4 font-medium">{t('timeToWarehouse')}</th>
+                                                <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
+                                                <th className="py-3 px-4 font-medium">{t('timeToReturn')}</th>
+                                            </>
+                                        )}
+                                        {selectedStatusFilter === 'atFactory' && (
+                                            <>
+                                                <th className="py-3 px-4 font-medium">{t('arrivalTime')}</th>
+                                                <th className="py-3 px-4 font-medium text-blue-600 italic">{t('timeAtFactory')}</th>
+                                            </>
+                                        )}
+                                        {selectedStatusFilter !== 'atFactory' && (
+                                            <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
+                                        )}
                                         <th className="py-3 px-4 rounded-r-lg font-medium text-right">{t('actions')}</th>
-                                        </tr>
+                                    </tr>
                                         </thead>
                                         <tbody>
                                         {filterData.length > 0 ? (
@@ -368,88 +383,96 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                             const tripTimeData = tripTimes.find(t => t.id === tr.id) || {};
                                             return (
                                             <tr key={tr.id} className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors`}>
-                                                <td className="py-3 px-4 font-medium text-gray-800">{isIdle ? `🚗 ${tr.car?.plate || '—'}` : `#${tr.id}`}</td>
-                                                <td className="py-3 px-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-                                                            {isIdle ? '—' : (tr.driver ? tr.driver.username.charAt(0).toUpperCase() : '?')}
-                                                        </div>
-                                                        <span className="font-medium text-gray-700">{isIdle ? t('idle') : (tr.driver ? tr.driver.username : t('unknown'))}</span>
-                                                    </div>
+                                                <td className="py-3 px-4 font-medium text-gray-800">
+                                                    {selectedStatusFilter === 'atFactory' ? `🚗 ${tr.car?.plate || tr.driver?.car?.plate || tr.driver?.car_plate || '—'}` : `#${tr.id}`}
                                                 </td>
-
-                                                {/* Time to Warehouse */}
                                                 <td className="py-3 px-4">
-                                                    {isIdle ? <span className="text-gray-400">—</span> : (
+                                                    {selectedStatusFilter === 'atFactory' ? (
+                                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${isIdle ? 'bg-gray-100 text-gray-600' : 'bg-teal-100 text-teal-700'}`}>
+                                                            {isIdle ? t('idle') : t('atFactory')}
+                                                        </span>
+                                                    ) : (
                                                         <div className="flex items-center gap-2">
-                                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tripTimeData.departureTime, false)}`}></span>
-                                                            <span className="text-gray-600 font-medium">{formatTimeMetric(tripTimeData.departureTime)}</span>
+                                                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                                                                {isIdle ? '—' : (tr.driver ? tr.driver.username.charAt(0).toUpperCase() : '?')}
+                                                            </div>
+                                                            <span className="font-medium text-gray-700">{isIdle ? t('idle') : (tr.driver ? tr.driver.username : t('unknown'))}</span>
                                                         </div>
                                                     )}
                                                 </td>
 
-                                                {/* Waiting Time */}
-                                                <td className="py-3 px-4">
-                                                    {isIdle ? <span className="text-gray-400">—</span> : (
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tripTimeData.waitingTime, true)}`}></span>
-                                                            <span className="text-gray-600 font-medium">{formatTimeMetric(tripTimeData.waitingTime)}</span>
-                                                        </div>
-                                                    )}
-                                                </td>
+                                                {/* Time Metrics (Hidden if atFactory) */}
+                                                {selectedStatusFilter !== 'atFactory' && (
+                                                    <>
+                                                        <td className="py-3 px-4">
+                                                            {isIdle ? <span className="text-gray-400">—</span> : (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tripTimeData.departureTime, false)}`}></span>
+                                                                    <span className="text-gray-600 font-medium">{formatTimeMetric(tripTimeData.departureTime)}</span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 px-4">
+                                                            {isIdle ? <span className="text-gray-400">—</span> : (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tripTimeData.waitingTime, true)}`}></span>
+                                                                    <span className="text-gray-600 font-medium">{formatTimeMetric(tripTimeData.waitingTime)}</span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 px-4">
+                                                            {isIdle ? <span className="text-gray-400">—</span> : (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tripTimeData.returnTime, false)}`}></span>
+                                                                    <span className="text-gray-600 font-medium">{formatTimeMetric(tripTimeData.returnTime)}</span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                    </>
+                                                )}
 
-                                                {/* Time to Return */}
-                                                <td className="py-3 px-4">
-                                                    {isIdle ? <span className="text-gray-400">—</span> : (
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getTimeColorClass(tripTimeData.returnTime, false)}`}></span>
-                                                            <span className="text-gray-600 font-medium">{formatTimeMetric(tripTimeData.returnTime)}</span>
-                                                        </div>
-                                                    )}
-                                                </td>
-
-                                                {/* Time at Factory (Conditional) */}
+                                                {/* Factory Arrival Metrics (Only if atFactory) */}
                                                 {selectedStatusFilter === 'atFactory' && (
-                                                    <td className="py-3 px-4">
+                                                    <>
                                                         {(() => {
                                                             const plate = isIdle ? tr.car?.plate : (tr.driver?.car?.plate || tr.driver?.car_plate);
-                                                            if (!plate) return <span className="text-gray-400">—</span>;
-
-                                                            // Find the latest "Arrival at Factory" log for this car plate across ALL trips
-                                                            // to see how long it has been sitting there.
                                                             let latestArrival = null;
-                                                            for (const trip of trips) {
-                                                                const tripPlate = trip.driver?.car?.plate || trip.driver?.car_plate;
-                                                                if (tripPlate === plate && trip.logs) {
-                                                                    const arrLog = trip.logs.find(l => l.state === 'Arrival at Factory');
-                                                                    if (arrLog) {
-                                                                        const logDate = parseSaudiDate(arrLog.timestamp);
-                                                                        if (!latestArrival || logDate > latestArrival) {
-                                                                            latestArrival = logDate;
+                                                            if (plate) {
+                                                                for (const trip of trips) {
+                                                                    const tripPlate = trip.driver?.car?.plate || trip.driver?.car_plate;
+                                                                    if (tripPlate === plate && trip.logs) {
+                                                                        const arrLog = trip.logs.find(l => l.state === 'Arrival at Factory');
+                                                                        if (arrLog) {
+                                                                            const logDate = parseSaudiDate(arrLog.timestamp);
+                                                                            if (!latestArrival || logDate > latestArrival) {
+                                                                                latestArrival = logDate;
+                                                                            }
                                                                         }
                                                                     }
                                                                 }
                                                             }
-                                                            
-                                                            if (!latestArrival) return <span className="text-gray-400">—</span>;
-                                                            
-                                                            const diff = (nowSaudi - latestArrival) / 60000;
+
+                                                            const arrivalStr = latestArrival ? formatSaudiDate(latestArrival.toISOString()) : '—';
+                                                            const diff = latestArrival ? (nowSaudi - latestArrival) / 60000 : null;
+
                                                             return (
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></span>
-                                                                    <span className="text-blue-700 font-bold">{formatTimeMetric(Math.max(0, diff))}</span>
-                                                                </div>
+                                                                <>
+                                                                    <td className="py-3 px-4 text-gray-600 text-xs">{arrivalStr}</td>
+                                                                    <td className="py-3 px-4 text-blue-700 font-bold">{formatTimeMetric(diff)}</td>
+                                                                </>
                                                             );
                                                         })()}
-                                                    </td>
+                                                    </>
                                                 )}
 
-                                                {/* Total Trip Time */}
-                                                <td className="py-3 px-4">
-                                                    {isIdle ? <span className="text-gray-400">—</span> : (
-                                                        <span className="text-gray-800 font-bold bg-gray-100 px-2 py-1 rounded-md text-xs">{formatTimeMetric(tripTimeData.totalTripTime)}</span>
-                                                    )}
-                                                </td>
+                                                {/* Total Trip Time (Hidden if atFactory) */}
+                                                {selectedStatusFilter !== 'atFactory' && (
+                                                    <td className="py-3 px-4">
+                                                        {isIdle ? <span className="text-gray-400">—</span> : (
+                                                            <span className="text-gray-800 font-bold bg-gray-100 px-2 py-1 rounded-md text-xs">{formatTimeMetric(tripTimeData.totalTripTime)}</span>
+                                                        )}
+                                                    </td>
+                                                )}
 
                                                 <td className="py-3 px-4 text-right">
                                                     {!isIdle && (
