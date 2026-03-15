@@ -137,14 +137,18 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     waitingTime = diff > 0 ? diff : 0;
                 }
                 if (tExitWarehouse) {
+                    // If they have arrived at factory, the return trip is FINISHED.
+                    // Otherwise, it's live (now - tExitWarehouse).
                     const diff = ((tArriveFactory || now) - tExitWarehouse) / 60000;
                     returnTime = diff > 0 ? diff : 0;
                 }
             }
 
             let totalTripTime = null;
-            if (departureTime !== null || returnTime !== null) {
-                totalTripTime = (departureTime || 0) + (returnTime || 0);
+            // Trip total is only complete if it reached the factory.
+            // But we show the running total for active trips too.
+            if (departureTime !== null) {
+                totalTripTime = (departureTime || 0) + (waitingTime || 0) + (returnTime || 0);
             }
 
             return {
@@ -350,21 +354,25 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                             const plate = isIdle ? tr.car?.plate : (tr.driver?.car?.plate || tr.driver?.car_plate);
                                                             if (!plate) return <span className="text-gray-400">—</span>;
 
-                                                            // Find the latest trip for THIS car that has an "Arrival at Factory" log
-                                                            const lastArrivalTrip = trips
-                                                                .filter(t => (t.driver?.car?.plate || t.driver?.car_plate) === plate)
-                                                                .filter(t => t.logs && t.logs.some(l => l.state === 'Arrival at Factory'))
-                                                                .sort((a, b) => b.id - a.id)[0];
+                                                            // Find the latest "Arrival at Factory" log for this car plate across ALL trips
+                                                            // to see how long it has been sitting there.
+                                                            let latestArrival = null;
+                                                            for (const trip of trips) {
+                                                                const tripPlate = trip.driver?.car?.plate || trip.driver?.car_plate;
+                                                                if (tripPlate === plate && trip.logs) {
+                                                                    const arrLog = trip.logs.find(l => l.state === 'Arrival at Factory');
+                                                                    if (arrLog) {
+                                                                        const logDate = new Date(arrLog.timestamp);
+                                                                        if (!latestArrival || logDate > latestArrival) {
+                                                                            latestArrival = logDate;
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
                                                             
-                                                            if (!lastArrivalTrip) return <span className="text-gray-400">—</span>;
+                                                            if (!latestArrival) return <span className="text-gray-400">—</span>;
                                                             
-                                                            const arriveLog = [...lastArrivalTrip.logs]
-                                                                .filter(l => l.state === 'Arrival at Factory')
-                                                                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-                                                            
-                                                            if (!arriveLog) return <span className="text-gray-400">—</span>;
-                                                            
-                                                            const diff = (new Date() - new Date(arriveLog.timestamp)) / 60000;
+                                                            const diff = (new Date() - latestArrival) / 60000;
                                                             return (
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></span>
