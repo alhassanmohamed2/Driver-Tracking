@@ -70,6 +70,30 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
         return allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
     }, [trips, t]);
 
+    // ── Inactive Drivers (no activity in 48h) ──
+    const inactiveList = useMemo(() => {
+        const driverLastLog = {};
+        trips.forEach(tr => {
+            if (!tr.driver_id || !tr.logs) return;
+            tr.logs.forEach(log => {
+                const t = parseSaudiDate(log.timestamp);
+                if (!driverLastLog[tr.driver_id] || t > driverLastLog[tr.driver_id]) {
+                    driverLastLog[tr.driver_id] = t;
+                }
+            });
+        });
+
+        return drivers.filter(d => {
+            const lastLog = driverLastLog[d.id];
+            if (!lastLog) return true;
+            const diffHours = (nowSaudi - lastLog) / 3600000;
+            return diffHours > 48;
+        }).map(d => ({
+            ...d,
+            lastSeen: driverLastLog[d.id]
+        })).sort((a, b) => (a.lastSeen || 0) - (b.lastSeen || 0));
+    }, [drivers, trips, nowSaudi]);
+
     // ── Vehicle Status Dashboard ──
     const vehicleStatus = useMemo(() => {
         const readyToDepart = [];
@@ -453,14 +477,14 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
             </div>
 
             {/* ── Additional Analytics ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-8">
                 {/* Recent Activity */}
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 mb-6">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
                     <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <Activity size={16} className="text-green-500" /> {t('recentActivity')}
                     </h3>
                     {recentActivity.length > 0 ? (
-                        <div className="space-y-3 max-h-[320px] overflow-y-auto">
+                        <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2">
                             {recentActivity.map((log, i) => (
                                 <div key={i} className={`flex items-start gap-3 py-2 ${i < recentActivity.length - 1 ? 'border-b border-gray-100' : ''}`}>
                                     <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
@@ -477,6 +501,40 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                         </div>
                     ) : (
                         <div className="h-[200px] flex items-center justify-center text-gray-400">{t('noData')}</div>
+                    )}
+                </div>
+
+                {/* Inactive Drivers */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6">
+                    <h3 className="text-sm md:text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Users size={16} className="text-rose-500" /> {t('inactiveDrivers')}
+                    </h3>
+                    {inactiveList.length > 0 ? (
+                        <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2">
+                            {inactiveList.map((d, i) => (
+                                <div key={i} className={`flex items-start justify-between py-2 ${i < inactiveList.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 font-bold text-xs ring-4 ring-rose-50/50">
+                                            {d.username.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-800">{d.username}</p>
+                                            <p className="text-[10px] text-rose-500 font-medium">{t('inactive48h')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-gray-400">{t('lastSeen') || 'Last Seen'}</p>
+                                        <p className="text-xs font-medium text-gray-600">
+                                            {d.lastSeen ? formatSaudiDate(d.lastSeen.toISOString()) : t('noData')}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="h-[200px] flex items-center justify-center text-gray-400 italic text-sm text-center px-4">
+                            ✅ {t('noInactiveDrivers')}
+                        </div>
                     )}
                 </div>
             </div>
