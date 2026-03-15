@@ -201,6 +201,7 @@ export const translations = {
         noVehiclesInState: "No vehicles currently in this state.",
         hideDetails: "Hide Details",
         timeMetrics: "Time Metrics",
+        timeAtFactory: "Time at Factory",
     },
     ar: {
         // Header
@@ -408,6 +409,7 @@ export const translations = {
         noVehiclesInState: "لا توجد مركبات في هذه الحالة حالياً.",
         hideDetails: "إخفاء التفاصيل",
         timeMetrics: "مقاييس الوقت",
+        timeAtFactory: "الوقت في المصنع",
     },
     ur: {
         // Header
