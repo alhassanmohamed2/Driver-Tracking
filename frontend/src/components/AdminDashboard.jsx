@@ -292,6 +292,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                         <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
                                         <th className="py-3 px-4 font-medium">{t('timeToReturn')}</th>
                                         <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
+                                        {selectedStatusFilter === 'atFactory' && <th className="py-3 px-4 font-medium text-blue-600 italic">{t('timeAtFactory')}</th>}
                                         <th className="py-3 px-4 rounded-r-lg font-medium text-right">{t('actions')}</th>
                                         </tr>
                                         </thead>
@@ -341,6 +342,33 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                         </div>
                                                     )}
                                                 </td>
+
+                                                {/* Time at Factory (Conditional) */}
+                                                {selectedStatusFilter === 'atFactory' && (
+                                                    <td className="py-3 px-4">
+                                                        {(() => {
+                                                            const targetTrip = isIdle 
+                                                                ? trips.filter(tr => (tr.driver?.car?.plate || tr.driver?.car_plate) === tr.car?.plate).sort((a,b) => b.id - a.id)[0] 
+                                                                : tr;
+                                                            
+                                                            if (!targetTrip || !targetTrip.logs) return <span className="text-gray-400">—</span>;
+                                                            
+                                                            const arriveLog = [...targetTrip.logs]
+                                                                .filter(l => l.state === 'Arrival at Factory')
+                                                                .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                                                            
+                                                            if (!arriveLog) return <span className="text-gray-400">—</span>;
+                                                            
+                                                            const diff = (new Date() - new Date(arriveLog.timestamp)) / 60000;
+                                                            return (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></span>
+                                                                    <span className="text-blue-700 font-bold">{formatTimeMetric(Math.max(0, diff))}</span>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                )}
 
                                                 {/* Total Trip Time */}
                                                 <td className="py-3 px-4">
