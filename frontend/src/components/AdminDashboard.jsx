@@ -12,18 +12,38 @@ const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#e
 // ══════════════════════════════════════════════════════════════
 const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setViewMode, setStatusFilter, setDateFrom, setDateTo, setSelectedTrip, setShowDetailsModal }) => {
 
+    // Helper to parse naive Saudi dates (UTC+3) correctly regardless of browser TZ
+    const parseSaudiDate = (dateStr) => {
+        if (!dateStr) return null;
+        let s = dateStr.replace(' ', 'T');
+        if (!s.includes('Z') && !s.includes('+')) {
+            s += '+03:00';
+        }
+        return new Date(s);
+    };
+
+    // Reference "Now" in Saudi Arabia (UTC+3)
+    const nowSaudi = useMemo(() => {
+        const d = new Date();
+        const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+        return new Date(utc + (3600000 * 3));
+    }, [trips]); // Re-calculate when trips change (usually on refresh/polling)
+
     // ── KPI Calculations ──
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date(nowSaudi); today.setHours(0, 0, 0, 0);
     const totalTrips = trips.length;
     const activeTrips = trips.filter(tr => tr.status === 'in_progress').length;
     const completedTrips = trips.filter(tr => tr.status === 'completed').length;
     const tripsToday = trips.filter(tr => {
-        const d = new Date(tr.start_date); d.setHours(0, 0, 0, 0);
+        const d = parseSaudiDate(tr.start_date);
+        if (!d) return false;
+        d.setHours(0, 0, 0, 0);
         return d.getTime() === today.getTime();
     }).length;
 
     const tripsThisMonth = trips.filter(tr => {
-        const d = new Date(tr.start_date);
+        const d = parseSaudiDate(tr.start_date);
+        if (!d) return false;
         return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
     }).length;
 
@@ -124,14 +144,14 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
             if (tr.logs && tr.logs.length > 0) {
                 const getLogTime = (stateName) => {
                     const log = tr.logs.find(l => l.state === stateName);
-                    return log ? new Date(log.timestamp) : null;
+                    return log ? parseSaudiDate(log.timestamp) : null;
                 };
 
                 const tExitFactory = getLogTime('Exit Factory');
                 const tArriveWarehouse = getLogTime('Arrival at Warehouse');
                 const tExitWarehouse = getLogTime('Exit Warehouse');
                 const tArriveFactory = getLogTime('Arrival at Factory');
-                const now = new Date();
+                const now = nowSaudi;
 
                 if (tExitFactory) {
                     const diff = ((tArriveWarehouse || now) - tExitFactory) / 60000;
@@ -379,7 +399,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                                 if (tripPlate === plate && trip.logs) {
                                                                     const arrLog = trip.logs.find(l => l.state === 'Arrival at Factory');
                                                                     if (arrLog) {
-                                                                        const logDate = new Date(arrLog.timestamp);
+                                                                        const logDate = parseSaudiDate(arrLog.timestamp);
                                                                         if (!latestArrival || logDate > latestArrival) {
                                                                             latestArrival = logDate;
                                                                         }
@@ -389,7 +409,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                             
                                                             if (!latestArrival) return <span className="text-gray-400">—</span>;
                                                             
-                                                            const diff = (new Date() - latestArrival) / 60000;
+                                                            const diff = (nowSaudi - latestArrival) / 60000;
                                                             return (
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></span>
