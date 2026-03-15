@@ -567,8 +567,23 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
 
 // ══════════════════════════════════════════════════════════════
 const AdminDashboard = () => {
-    const { language, toggleLanguage, t } = useLanguage();
+    const { language, setLanguage, toggleLanguage, t } = useLanguage();
     const isRtl = language === 'ar';
+
+    // Safety: Admin Dashboard only supports en/ar. 
+    // If we land here while ur or hi is selected (from driver panel), auto-switch to en.
+    useEffect(() => {
+        if (['ur', 'hi'].includes(language)) {
+            setLanguage('en');
+            localStorage.setItem('driverLanguage', 'en');
+        }
+    }, [language, setLanguage]);
+
+    const toggleAdminLanguage = () => {
+        const nextLang = language === 'ar' ? 'en' : 'ar';
+        setLanguage(nextLang);
+        localStorage.setItem('driverLanguage', nextLang);
+    };
 
     const [trips, setTrips] = useState([]);
     const [drivers, setDrivers] = useState([]);
@@ -956,8 +971,8 @@ const AdminDashboard = () => {
 
                     {/* Desktop icon buttons */}
                     <div className="hidden md:flex gap-2 items-center flex-shrink-0">
-                        <button onClick={toggleLanguage} className="p-2 text-gray-500 hover:text-blue-600 transition" title={t('languageLabel')}>
-                            <Globe size={20} />
+                        <button onClick={toggleAdminLanguage} className="p-2 text-gray-500 hover:text-blue-600 transition" title={t('languageLabel')}>
+                            {isRtl ? 'English' : 'العربية'}
                         </button>
                         <button onClick={() => setShowSettingsForm(true)} className="p-2 text-gray-500 hover:text-blue-600 transition" title={t('companySettings')}>
                             <Settings size={20} />
