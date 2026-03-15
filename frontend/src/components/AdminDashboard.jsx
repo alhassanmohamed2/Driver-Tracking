@@ -288,16 +288,15 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                     <tr className="bg-gray-50 text-gray-500">
                                         <th className="py-3 px-4 rounded-l-lg font-medium">{t('tripId')}</th>
                                         <th className="py-3 px-4 font-medium">{t('driver')}</th>
-                                        <th className="py-3 px-4 font-medium">{t('startDate')}</th>
                                         <th className="py-3 px-4 font-medium">{t('timeToWarehouse')}</th>
                                         <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
                                         <th className="py-3 px-4 font-medium">{t('timeToReturn')}</th>
                                         <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
                                         <th className="py-3 px-4 rounded-r-lg font-medium text-right">{t('actions')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filterData.length > 0 ? (
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {filterData.length > 0 ? (
                                         filterData.map((tr) => {
                                             const isIdle = tr.status === 'idle';
                                             const tripTimeData = tripTimes.find(t => t.id === tr.id) || {};
@@ -312,8 +311,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                         <span className="font-medium text-gray-700">{isIdle ? t('idle') : (tr.driver ? tr.driver.username : t('unknown'))}</span>
                                                     </div>
                                                 </td>
-                                                <td className="py-3 px-4 text-gray-600">{isIdle ? <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">{t('idle')}</span> : formatSaudiDate(tr.start_date)}</td>
-                                                
+
                                                 {/* Time to Warehouse */}
                                                 <td className="py-3 px-4">
                                                     {isIdle ? <span className="text-gray-400">—</span> : (
@@ -361,12 +359,13 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                             </tr>
                                             );
                                         })
-                                    ) : (
+                                        ) : (
                                         <tr>
-                                            <td colSpan="8" className="py-8 text-center text-gray-400">
+                                            <td colSpan="7" className="py-8 text-center text-gray-400">
                                                 {t('noVehiclesInState')}
                                             </td>
                                         </tr>
+
                                     )}
                                 </tbody>
                             </table>
@@ -1225,7 +1224,6 @@ const AdminDashboard = () => {
                                     <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('idLabel')}</th>
                                     <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('driverLabel')}</th>
                                     <th className="hidden sm:table-cell px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('carLabel')}</th>
-                                    <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('startTime')}</th>
                                     <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('statusLabel')}</th>
                                     <th className="px-3 md:px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase tracking-wider">{t('actions')}</th>
                                 </tr>
@@ -1236,7 +1234,6 @@ const AdminDashboard = () => {
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{trip.id}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trip.driver ? trip.driver.username : t('unknown')}</td>
                                         <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">{trip.driver && trip.driver.car ? trip.driver.car.plate : t('na')}</td>
-                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">{formatSaudiDate(trip.start_date)}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trip.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
                                                 {trip.status === 'in_progress' ? t('active') : t('completed')}
