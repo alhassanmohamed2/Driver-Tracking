@@ -9,12 +9,17 @@ export const LanguageProvider = ({ children }) => {
         return localStorage.getItem('driverLanguage') || 'en';
     });
 
-    // Set initial direction on mount
-    useEffect(() => {
-        const isRtl = ['ar', 'ur'].includes(language);
+    // Helper to update document attributes
+    const updateDocumentAttributes = (lang) => {
+        const isRtl = ['ar', 'ur'].includes(lang);
         document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
-        document.documentElement.lang = language;
-    }, []);
+        document.documentElement.lang = lang;
+    };
+
+    // Keep document attributes in sync with language state
+    useEffect(() => {
+        updateDocumentAttributes(language);
+    }, [language]);
 
     const toggleLanguage = () => {
         // Cycle: en -> ar -> ur -> hi -> en
@@ -24,18 +29,13 @@ export const LanguageProvider = ({ children }) => {
 
         setLanguage(newLang);
         localStorage.setItem('driverLanguage', newLang);
-
-        // Update document direction: ar and ur are rtl, others ltr
-        const isRtl = ['ar', 'ur'].includes(newLang);
-        document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
-        document.documentElement.lang = newLang;
     };
 
     // Translation function
     const t = (key) => translations[language]?.[key] || key;
 
     return (
-        <LanguageContext.Provider value={{ language, toggleLanguage, t }}>
+        <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t }}>
             {children}
         </LanguageContext.Provider>
     );
