@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -20,6 +20,11 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
     const tripsToday = trips.filter(tr => {
         const d = new Date(tr.start_date); d.setHours(0, 0, 0, 0);
         return d.getTime() === today.getTime();
+    }).length;
+
+    const tripsThisMonth = trips.filter(tr => {
+        const d = new Date(tr.start_date);
+        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
     }).length;
 
     // ── Trip Status Breakdown ──
@@ -204,7 +209,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
     return (
         <div className="space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
             {/* ── KPI Cards ── */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
                 <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" onClick={() => { setViewMode('trips'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} />
                 <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" onClick={() => { setViewMode('trips'); setStatusFilter('in_progress'); setDateFrom(''); setDateTo(''); }} />
                 <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" onClick={() => { setViewMode('trips'); setStatusFilter('completed'); setDateFrom(''); setDateTo(''); }} />
@@ -220,6 +225,18 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     const dateStr = `${yyyy}-${mm}-${dd}`;
                     setDateFrom(dateStr);
                     setDateTo(dateStr);
+                }} />
+                <KPICard icon={Calendar} label={t('tripsThisMonth')} value={tripsThisMonth} color="text-indigo-600" bgColor="bg-indigo-50" onClick={() => {
+                    setViewMode('trips');
+                    setStatusFilter('all');
+                    const td = new Date();
+                    const yyyy = td.getFullYear();
+                    const mm = String(td.getMonth() + 1).padStart(2, '0');
+                    // First day of month
+                    setDateFrom(`${yyyy}-${mm}-01`);
+                    // Today as end date
+                    const dd = String(td.getDate()).padStart(2, '0');
+                    setDateTo(`${yyyy}-${mm}-${dd}`);
                 }} />
             </div>
 
