@@ -839,19 +839,33 @@ const AdminDashboard = () => {
         setShowTripEditForm(true);
     };
 
-    // Helper: format a naive Saudi datetime string for display
+    // Helper: format a naive or ISO Saudi datetime string for display
     const formatSaudiDate = (dateStr) => {
         if (!dateStr) return '';
-        const utcStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
-        const d = new Date(utcStr);
-        return d.toLocaleString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'UTC' });
+        
+        // If it's a naive string from DB (already Riyadh time but no TZ info)
+        if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+')) {
+            const utcStr = dateStr.replace(' ', 'T').endsWith('Z') ? dateStr : `${dateStr.replace(' ', 'T')}Z`;
+            const d = new Date(utcStr);
+            return d.toLocaleString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'UTC' });
+        }
+
+        // If it's an ISO string or Date object, render specifically in Riyadh timezone
+        const d = new Date(dateStr);
+        return d.toLocaleString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'Asia/Riyadh' });
     };
 
     const formatSaudiTime = (dateStr) => {
         if (!dateStr) return '';
-        const utcStr = dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`;
-        const d = new Date(utcStr);
-        return d.toLocaleTimeString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
+        
+        if (typeof dateStr === 'string' && !dateStr.includes('Z') && !dateStr.includes('+')) {
+            const utcStr = dateStr.replace(' ', 'T').endsWith('Z') ? dateStr : `${dateStr.replace(' ', 'T')}Z`;
+            const d = new Date(utcStr);
+            return d.toLocaleTimeString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' });
+        }
+
+        const d = new Date(dateStr);
+        return d.toLocaleTimeString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'Asia/Riyadh', hour: '2-digit', minute: '2-digit' });
     };
 
     const handleSaveTrip = async (e) => {
