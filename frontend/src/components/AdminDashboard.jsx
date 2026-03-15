@@ -347,15 +347,20 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                 {selectedStatusFilter === 'atFactory' && (
                                                     <td className="py-3 px-4">
                                                         {(() => {
-                                                            const targetTrip = isIdle 
-                                                                ? trips.filter(tr => (tr.driver?.car?.plate || tr.driver?.car_plate) === tr.car?.plate).sort((a,b) => b.id - a.id)[0] 
-                                                                : tr;
+                                                            const plate = isIdle ? tr.car?.plate : (tr.driver?.car?.plate || tr.driver?.car_plate);
+                                                            if (!plate) return <span className="text-gray-400">—</span>;
+
+                                                            // Find the latest trip for THIS car that has an "Arrival at Factory" log
+                                                            const lastArrivalTrip = trips
+                                                                .filter(t => (t.driver?.car?.plate || t.driver?.car_plate) === plate)
+                                                                .filter(t => t.logs && t.logs.some(l => l.state === 'Arrival at Factory'))
+                                                                .sort((a, b) => b.id - a.id)[0];
                                                             
-                                                            if (!targetTrip || !targetTrip.logs) return <span className="text-gray-400">—</span>;
+                                                            if (!lastArrivalTrip) return <span className="text-gray-400">—</span>;
                                                             
-                                                            const arriveLog = [...targetTrip.logs]
+                                                            const arriveLog = [...lastArrivalTrip.logs]
                                                                 .filter(l => l.state === 'Arrival at Factory')
-                                                                .sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+                                                                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
                                                             
                                                             if (!arriveLog) return <span className="text-gray-400">—</span>;
                                                             
