@@ -441,7 +441,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                                 for (const trip of trips) {
                                                                     const tripPlate = trip.driver?.car?.plate || trip.driver?.car_plate;
                                                                     if (tripPlate === plate && trip.logs) {
-                                                                        const arrLog = trip.logs.find(l => l.state === 'Arrival at Factory');
+                                                                        const arrLog = trip.logs.find(l => l.state === 'ARRIVE_FACTORY');
                                                                         if (arrLog) {
                                                                             const logDate = parseSaudiDate(arrLog.timestamp);
                                                                             if (!latestArrival || logDate > latestArrival) {
