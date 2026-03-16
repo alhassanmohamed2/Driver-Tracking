@@ -23,7 +23,11 @@ def start_trip(current_user: models.User = Depends(get_current_user), db: Sessio
     if active_trip:
         return active_trip
         
-    new_trip = models.Trip(driver_id=current_user.id, start_date=now_saudi())
+    new_trip = models.Trip(
+        driver_id=current_user.id, 
+        car_id=current_user.car_id, 
+        start_date=now_saudi()
+    )
     db.add(new_trip)
     db.commit()
     db.refresh(new_trip)

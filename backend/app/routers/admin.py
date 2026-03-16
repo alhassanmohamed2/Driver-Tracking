@@ -27,6 +27,7 @@ def get_all_trips(current_user: models.User = Depends(get_current_user), db: Ses
     check_admin(current_user)
     trips = db.query(models.Trip).options(
         joinedload(models.Trip.driver),
+        joinedload(models.Trip.car),
         selectinload(models.Trip.logs)
     ).order_by(models.Trip.id.desc()).all()
     return trips
@@ -261,7 +262,7 @@ def export_trips(
         row = {
             "Trip ID": trip.id,
             "Driver": trip.driver.username if trip.driver else "Unknown",
-            "Car Plate": trip.driver.car.plate if trip.driver and trip.driver.car else "N/A",
+            "Car Plate": (trip.car.plate if trip.car else (trip.driver.car.plate if trip.driver and trip.driver.car else "N/A")),
             "Start Date": trip.start_date.strftime("%Y-%m-%d %H:%M") if trip.start_date else "",
             "Status": trip.status.value,
             "Exit Factory Time": ef_time,

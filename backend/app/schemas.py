@@ -73,6 +73,7 @@ class TripCreate(TripBase):
 class Trip(TripBase):
     id: int
     driver_id: int
+    car_id: Optional[int] = None
     start_date: datetime
     status: TripStatus
     exit_factory_time: Optional[datetime] = None
@@ -85,6 +86,7 @@ class Trip(TripBase):
     arrive_factory_address: Optional[str] = None
     logs: List[TripLog] = []
     driver: Optional[User] = None
+    car: Optional[Car] = None
 
     class Config:
         orm_mode = True

@@ -107,7 +107,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
         const carTripMap = {};
 
         activeTrips.forEach(tr => {
-            const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
+            const plate = tr.car?.plate || tr.driver?.car?.plate || tr.driver?.car_plate;
             if (!plate) return;
 
             let state = 'READY'; // default: no logs = ready to depart
@@ -137,7 +137,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
 
         // Also handle trips whose driver has no car (edge case like mzada with NULL plate)
         activeTrips.forEach(tr => {
-            const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
+            const plate = tr.car?.plate || tr.driver?.car?.plate || tr.driver?.car_plate;
             if (!plate) {
                 let state = 'ready';
                 if (tr.logs && tr.logs.length > 0) {
@@ -145,10 +145,10 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     state = sortedLogs[0].state;
                 }
                 if (state === 'ready') readyToDepart.push(tr);
-                else if (state === 'Arrival at Factory') returnedToFactory.push(tr);
-                else if (state === 'Exit Factory') outbound.push(tr);
-                else if (state === 'Arrival at Warehouse') atWarehouse.push(tr);
-                else if (state === 'Exit Warehouse') inbound.push(tr);
+                else if (state === 'ARRIVE_FACTORY') returnedToFactory.push(tr);
+                else if (state === 'EXIT_FACTORY') outbound.push(tr);
+                else if (state === 'ARRIVE_WAREHOUSE') atWarehouse.push(tr);
+                else if (state === 'EXIT_WAREHOUSE') inbound.push(tr);
                 else readyToDepart.push(tr);
             }
         });
@@ -439,7 +439,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                             let latestArrival = null;
                                                             if (plate) {
                                                                 for (const trip of trips) {
-                                                                    const tripPlate = trip.driver?.car?.plate || trip.driver?.car_plate;
+                                                                    const tripPlate = trip.car?.plate || trip.driver?.car?.plate || trip.driver?.car_plate;
                                                                     if (tripPlate === plate && trip.logs) {
                                                                         const arrLog = trip.logs.find(l => l.state === 'ARRIVE_FACTORY');
                                                                         if (arrLog) {
@@ -1421,7 +1421,7 @@ const AdminDashboard = () => {
                                     <tr key={trip.id} className="hover:bg-gray-50">
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{trip.id}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trip.driver ? trip.driver.username : t('unknown')}</td>
-                                        <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">{trip.driver && trip.driver.car ? trip.driver.car.plate : t('na')}</td>
+                                        <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">{(trip.car?.plate || (trip.driver?.car?.plate || trip.driver?.car_plate)) || t('na')}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trip.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
                                                 {trip.status === 'IN_PROGRESS' ? t('active') : t('completed')}

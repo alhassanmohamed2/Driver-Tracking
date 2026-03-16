@@ -52,6 +52,7 @@ class Trip(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     driver_id = Column(Integer, ForeignKey("users.id"))
+    car_id = Column(Integer, ForeignKey("cars.id"), nullable=True)
     start_date = Column(DateTime, default=now_saudi)
     status = Column(Enum(TripStatus), default=TripStatus.IN_PROGRESS)
     
@@ -66,6 +67,7 @@ class Trip(Base):
     arrive_factory_address = Column(String(255), nullable=True)
 
     driver = relationship("User", back_populates="trips")
+    car = relationship("Car")
     logs = relationship("TripLog", back_populates="trip")
 
 class TripLog(Base):
