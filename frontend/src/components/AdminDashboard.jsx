@@ -32,7 +32,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
     // ── KPI Calculations ──
     const today = new Date(nowSaudi); today.setHours(0, 0, 0, 0);
     const totalTrips = trips.length;
-    const activeTrips = trips.filter(tr => tr.status === 'in_progress').length;
+    const activeTrips = trips.filter(tr => tr.status === 'IN_PROGRESS').length;
     const completedTrips = trips.filter(tr => tr.status === 'completed').length;
     const tripsToday = trips.filter(tr => {
         const d = parseSaudiDate(tr.start_date);
@@ -102,15 +102,15 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
         const outbound = [];
         const inbound = [];
 
-        // Build a map: car_plate -> latest in_progress trip state
-        const activeTrips = trips.filter(tr => tr.status === 'in_progress');
+        // Build a map: car_plate -> latest IN_PROGRESS trip state
+        const activeTrips = trips.filter(tr => tr.status === 'IN_PROGRESS');
         const carTripMap = {};
 
         activeTrips.forEach(tr => {
             const plate = tr.driver?.car?.plate || tr.driver?.car_plate;
             if (!plate) return;
 
-            let state = 'ready'; // default: no logs = ready to depart
+            let state = 'READY'; // default: no logs = ready to depart
             if (tr.logs && tr.logs.length > 0) {
                 const sortedLogs = [...tr.logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                 state = sortedLogs[0].state;
@@ -123,14 +123,14 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
             const entry = carTripMap[car.plate];
             if (!entry) {
                 // Car has no active trip → resting at factory after completing a trip
-                returnedToFactory.push({ id: `car-${car.id}`, car, driver: null, status: 'idle' });
+                returnedToFactory.push({ id: `car-${car.id}`, car, driver: null, status: 'IDLE' });
             } else {
                 const { trip, state } = entry;
-                if (state === 'ready') readyToDepart.push(trip);
-                else if (state === 'Arrival at Factory') returnedToFactory.push(trip);
-                else if (state === 'Exit Factory') outbound.push(trip);
-                else if (state === 'Arrival at Warehouse') atWarehouse.push(trip);
-                else if (state === 'Exit Warehouse') inbound.push(trip);
+                if (state === 'READY') readyToDepart.push(trip);
+                else if (state === 'ARRIVE_FACTORY') returnedToFactory.push(trip);
+                else if (state === 'EXIT_FACTORY') outbound.push(trip);
+                else if (state === 'ARRIVE_WAREHOUSE') atWarehouse.push(trip);
+                else if (state === 'EXIT_WAREHOUSE') inbound.push(trip);
                 else readyToDepart.push(trip);
             }
         });
@@ -171,10 +171,10 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     return log ? parseSaudiDate(log.timestamp) : null;
                 };
 
-                const tExitFactory = getLogTime('Exit Factory');
-                const tArriveWarehouse = getLogTime('Arrival at Warehouse');
-                const tExitWarehouse = getLogTime('Exit Warehouse');
-                const tArriveFactory = getLogTime('Arrival at Factory');
+                const tExitFactory = getLogTime('EXIT_FACTORY');
+                const tArriveWarehouse = getLogTime('ARRIVE_WAREHOUSE');
+                const tExitWarehouse = getLogTime('EXIT_WAREHOUSE');
+                const tArriveFactory = getLogTime('ARRIVE_FACTORY');
                 const now = nowSaudi;
 
                 if (tExitFactory) {
@@ -255,7 +255,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
             {/* ── KPI Cards ── */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
                 <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" onClick={() => { setViewMode('trips'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} />
-                <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" onClick={() => { setViewMode('trips'); setStatusFilter('in_progress'); setDateFrom(''); setDateTo(''); }} />
+                <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" onClick={() => { setViewMode('trips'); setStatusFilter('IN_PROGRESS'); setDateFrom(''); setDateTo(''); }} />
                 <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" onClick={() => { setViewMode('trips'); setStatusFilter('completed'); setDateFrom(''); setDateTo(''); }} />
                 <KPICard icon={Users} label={t('totalDrivers')} value={drivers.length} color="text-purple-600" bgColor="bg-purple-50" onClick={() => { setViewMode('drivers'); }} />
                 <KPICard icon={Truck} label={t('totalCars')} value={cars.length} color="text-indigo-600" bgColor="bg-indigo-50" onClick={() => { setViewMode('cars'); }} />
@@ -379,7 +379,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                         <tbody>
                                         {filterData.length > 0 ? (
                                         filterData.map((tr) => {
-                                            const isIdle = tr.status === 'idle';
+                                            const isIdle = tr.status === 'IDLE' || tr.status === 'IDLE_CAR' || (tr.logs && tr.logs.length > 0 && tr.logs[tr.logs.length-1].state === 'ARRIVE_FACTORY');
                                             const tripTimeData = tripTimes.find(t => t.id === tr.id) || {};
                                             return (
                                             <tr key={tr.id} className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors`}>
@@ -1029,7 +1029,7 @@ const AdminDashboard = () => {
                                 className="px-2 md:px-4 py-1.5 md:py-2 border border-gray-300 rounded-md text-xs md:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="all">{t('statusLabel') || 'Status'}: {t('all') || 'All'}</option>
-                                <option value="in_progress">{t('active')}</option>
+                                <option value="IN_PROGRESS">{t('active')}</option>
                                 <option value="completed">{t('completed')}</option>
                             </select>
                             <select
@@ -1248,7 +1248,7 @@ const AdminDashboard = () => {
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">{t('statusLabel')}</label>
                                         <select className="w-full px-4 py-2 border rounded-lg" value={tripForm.status} onChange={e => setTripForm({ ...tripForm, status: e.target.value })}>
-                                            <option value="in_progress">{t('inProgress')}</option>
+                                            <option value="IN_PROGRESS">{t('inProgress')}</option>
                                             <option value="completed">{t('completed')}</option>
                                         </select>
                                     </div>
@@ -1374,8 +1374,8 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="p-3 bg-gray-50 rounded-lg">
                                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">{t('statusLabel')}</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${selectedTrip.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                                            {selectedTrip.status === 'in_progress' ? t('inProgress') : t('completed')}
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${selectedTrip.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                                            {selectedTrip.status === 'IN_PROGRESS' ? t('inProgress') : t('completed')}
                                         </span>
                                     </div>
                                 </div>
@@ -1423,8 +1423,8 @@ const AdminDashboard = () => {
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-medium text-gray-900">{trip.driver ? trip.driver.username : t('unknown')}</td>
                                         <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">{trip.driver && trip.driver.car ? trip.driver.car.plate : t('na')}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trip.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                                                {trip.status === 'in_progress' ? t('active') : t('completed')}
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${trip.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                                                {trip.status === 'IN_PROGRESS' ? t('active') : t('completed')}
                                             </span>
                                         </td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-end text-sm font-medium">

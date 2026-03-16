@@ -9,14 +9,14 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
 
 class TripStatus(str, enum.Enum):
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
 
 class TripState(str, enum.Enum):
-    EXIT_FACTORY = "Exit Factory"
-    ARRIVE_WAREHOUSE = "Arrival at Warehouse"
-    EXIT_WAREHOUSE = "Exit Warehouse"
-    ARRIVE_FACTORY = "Arrival at Factory"
+    EXIT_FACTORY = "EXIT_FACTORY"
+    ARRIVE_WAREHOUSE = "ARRIVE_WAREHOUSE"
+    EXIT_WAREHOUSE = "EXIT_WAREHOUSE"
+    ARRIVE_FACTORY = "ARRIVE_FACTORY"
 
 class CarStatus(str, enum.Enum):
     ACTIVE = "active"
