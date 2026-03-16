@@ -58,7 +58,7 @@ const DriverDashboard = () => {
                 } else if (lastLog.state === 'EXIT_WAREHOUSE') {
                     setNextState('choice');
                 } else if (lastLog.state === 'ARRIVE_FACTORY') {
-                    setNextState('completed');
+                    setNextState('COMPLETED');
                 }
             }
         } catch (err) {
@@ -121,7 +121,7 @@ const DriverDashboard = () => {
             else if (state === 'ARRIVE_WAREHOUSE') setNextState('EXIT_WAREHOUSE');
             else if (state === 'EXIT_WAREHOUSE') setNextState('choice');
             else if (state === 'ARRIVE_FACTORY') {
-                setNextState('completed');
+                setNextState('COMPLETED');
                 setActiveTrip(null);
             }
 
@@ -191,7 +191,7 @@ const DriverDashboard = () => {
             )
         }
 
-        if (nextState === 'completed') {
+        if (nextState === 'COMPLETED') {
             return (
                 <div className="p-6 bg-green-100 text-green-800 rounded-xl text-center font-bold text-xl">
                     {t('tripCompleted')}
@@ -322,7 +322,7 @@ const DriverDashboard = () => {
                                     ))}
 
                                     {/* Next Step Placeholder */}
-                                    {nextState !== 'completed' && nextState !== 'choice' && (
+                                    {nextState !== 'COMPLETED' && nextState !== 'choice' && (
                                         <div className="flex items-center gap-3 mt-4 opacity-60">
                                             <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 shrink-0 border-2 border-slate-100 z-10 border-dashed">
                                                 <div className="w-2 h-2 bg-slate-300 rounded-full animate-ping"></div>
