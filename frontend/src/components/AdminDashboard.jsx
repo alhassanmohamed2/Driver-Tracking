@@ -33,7 +33,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
     const today = new Date(nowSaudi); today.setHours(0, 0, 0, 0);
     const totalTrips = trips.length;
     const activeTrips = trips.filter(tr => tr.status === 'IN_PROGRESS').length;
-    const completedTrips = trips.filter(tr => tr.status === 'completed').length;
+    const completedTrips = trips.filter(tr => tr.status === 'COMPLETED').length;
     const tripsToday = trips.filter(tr => {
         const d = parseSaudiDate(tr.start_date);
         if (!d) return false;
@@ -256,7 +256,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4">
                 <KPICard icon={BarChart3} label={t('totalTrips')} value={totalTrips} color="text-blue-600" bgColor="bg-blue-50" onClick={() => { setViewMode('trips'); setStatusFilter('all'); setDateFrom(''); setDateTo(''); }} />
                 <KPICard icon={Activity} label={t('activeTrips')} value={activeTrips} color="text-amber-600" bgColor="bg-amber-50" onClick={() => { setViewMode('trips'); setStatusFilter('IN_PROGRESS'); setDateFrom(''); setDateTo(''); }} />
-                <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" onClick={() => { setViewMode('trips'); setStatusFilter('completed'); setDateFrom(''); setDateTo(''); }} />
+                <KPICard icon={CheckCircle2} label={t('completedTrips')} value={completedTrips} color="text-green-600" bgColor="bg-green-50" onClick={() => { setViewMode('trips'); setStatusFilter('COMPLETED'); setDateFrom(''); setDateTo(''); }} />
                 <KPICard icon={Users} label={t('totalDrivers')} value={drivers.length} color="text-purple-600" bgColor="bg-purple-50" onClick={() => { setViewMode('drivers'); }} />
                 <KPICard icon={Truck} label={t('totalCars')} value={cars.length} color="text-indigo-600" bgColor="bg-indigo-50" onClick={() => { setViewMode('cars'); }} />
                 <KPICard icon={TrendingUp} label={t('tripsToday')} value={tripsToday} color="text-rose-600" bgColor="bg-rose-50" onClick={() => {
@@ -435,7 +435,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                 {selectedStatusFilter === 'atFactory' && (
                                                     <>
                                                         {(() => {
-                                                            const plate = isIdle ? tr.car?.plate : (tr.driver?.car?.plate || tr.driver?.car_plate);
+                                                            const plate = tr.car?.plate || tr.driver?.car?.plate || tr.driver?.car_plate;
                                                             let latestArrival = null;
                                                             if (plate) {
                                                                 for (const trip of trips) {
@@ -1030,7 +1030,7 @@ const AdminDashboard = () => {
                             >
                                 <option value="all">{t('statusLabel') || 'Status'}: {t('all') || 'All'}</option>
                                 <option value="IN_PROGRESS">{t('active')}</option>
-                                <option value="completed">{t('completed')}</option>
+                                <option value="COMPLETED">{t('completed')}</option>
                             </select>
                             <select
                                 value={selectedDriver}
@@ -1249,7 +1249,7 @@ const AdminDashboard = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">{t('statusLabel')}</label>
                                         <select className="w-full px-4 py-2 border rounded-lg" value={tripForm.status} onChange={e => setTripForm({ ...tripForm, status: e.target.value })}>
                                             <option value="IN_PROGRESS">{t('inProgress')}</option>
-                                            <option value="completed">{t('completed')}</option>
+                                            <option value="COMPLETED">{t('completed')}</option>
                                         </select>
                                     </div>
                                 </div>
