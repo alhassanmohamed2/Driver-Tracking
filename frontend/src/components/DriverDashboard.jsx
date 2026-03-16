@@ -50,14 +50,14 @@ const DriverDashboard = () => {
                 const lastLog = trip.logs && trip.logs.length > 0 ? trip.logs[trip.logs.length - 1] : null;
 
                 if (!lastLog) {
-                    setNextState('Exit Factory');
-                } else if (lastLog.state === 'Exit Factory') {
-                    setNextState('Arrival at Warehouse');
-                } else if (lastLog.state === 'Arrival at Warehouse') {
-                    setNextState('Exit Warehouse');
-                } else if (lastLog.state === 'Exit Warehouse') {
+                    setNextState('EXIT_FACTORY');
+                } else if (lastLog.state === 'EXIT_FACTORY') {
+                    setNextState('ARRIVE_WAREHOUSE');
+                } else if (lastLog.state === 'ARRIVE_WAREHOUSE') {
+                    setNextState('EXIT_WAREHOUSE');
+                } else if (lastLog.state === 'EXIT_WAREHOUSE') {
                     setNextState('choice');
-                } else if (lastLog.state === 'Arrival at Factory') {
+                } else if (lastLog.state === 'ARRIVE_FACTORY') {
                     setNextState('completed');
                 }
             }
@@ -117,10 +117,10 @@ const DriverDashboard = () => {
 
             await logTripState(activeTrip.id, state, latitude, longitude, address);
 
-            if (state === 'Exit Factory') setNextState('Arrival at Warehouse');
-            else if (state === 'Arrival at Warehouse') setNextState('Exit Warehouse');
-            else if (state === 'Exit Warehouse') setNextState('choice');
-            else if (state === 'Arrival at Factory') {
+            if (state === 'EXIT_FACTORY') setNextState('ARRIVE_WAREHOUSE');
+            else if (state === 'ARRIVE_WAREHOUSE') setNextState('EXIT_WAREHOUSE');
+            else if (state === 'EXIT_WAREHOUSE') setNextState('choice');
+            else if (state === 'ARRIVE_FACTORY') {
                 setNextState('completed');
                 setActiveTrip(null);
             }
@@ -143,9 +143,9 @@ const DriverDashboard = () => {
 
     const handleChoice = (choice) => {
         if (choice === 'next_warehouse') {
-            setNextState('Arrival at Warehouse');
+            setNextState('ARRIVE_WAREHOUSE');
         } else {
-            setNextState('Arrival at Factory');
+            setNextState('ARRIVE_FACTORY');
         }
     };
 
@@ -201,10 +201,10 @@ const DriverDashboard = () => {
 
         const getButtonConfig = () => {
             switch (nextState) {
-                case 'Exit Factory': return { label: t('logExitFactory'), icon: <Truck />, color: 'bg-indigo-600' };
-                case 'Arrival at Warehouse': return { label: t('logArriveWarehouse'), icon: <MapPin />, color: 'bg-purple-600' };
-                case 'Exit Warehouse': return { label: t('logExitWarehouse'), icon: <Truck />, color: 'bg-orange-600' };
-                case 'Arrival at Factory': return { label: t('logArriveFactoryEnd'), icon: <Home />, color: 'bg-green-600' };
+                case 'EXIT_FACTORY': return { label: t('logExitFactory'), icon: <Truck />, color: 'bg-indigo-600' };
+                case 'ARRIVE_WAREHOUSE': return { label: t('logArriveWarehouse'), icon: <MapPin />, color: 'bg-purple-600' };
+                case 'EXIT_WAREHOUSE': return { label: t('logExitWarehouse'), icon: <Truck />, color: 'bg-orange-600' };
+                case 'ARRIVE_FACTORY': return { label: t('logArriveFactoryEnd'), icon: <Home />, color: 'bg-green-600' };
                 default: return { label: t('loadingTripState'), icon: <Loader className="animate-spin" />, color: 'bg-gray-400' };
             }
         };

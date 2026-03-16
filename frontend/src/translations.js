@@ -22,6 +22,10 @@ export const translations = {
         "Arrival at Warehouse": "Arrival at Warehouse",
         "Exit Warehouse": "Exit Warehouse",
         "Arrival at Factory": "Arrival at Factory",
+        EXIT_FACTORY: "Exit Factory",
+        ARRIVE_WAREHOUSE: "Arrival at Warehouse",
+        EXIT_WAREHOUSE: "Exit Warehouse",
+        ARRIVE_FACTORY: "Arrival at Factory",
 
         // Actions
         logExitFactory: "Log Exit Factory",
@@ -236,6 +240,10 @@ export const translations = {
         "Arrival at Warehouse": "الوصول إلى المستودع",
         "Exit Warehouse": "الخروج من المستودع",
         "Arrival at Factory": "الوصول إلى المصنع",
+        EXIT_FACTORY: "خروج من المصنع",
+        ARRIVE_WAREHOUSE: "وصول إلى المستودع",
+        EXIT_WAREHOUSE: "خروج من المستودع",
+        ARRIVE_FACTORY: "وصول إلى المصنع",
 
         // Actions
         logExitFactory: "تسجيل الخروج من المصنع",
@@ -450,6 +458,10 @@ export const translations = {
         "Arrival at Warehouse": "گودام آمد",
         "Exit Warehouse": "گودام سے خروج",
         "Arrival at Factory": "فیکٹری آمد",
+        EXIT_FACTORY: "فیکٹری سے خروج",
+        ARRIVE_WAREHOUSE: "گودام آمد",
+        EXIT_WAREHOUSE: "گودام سے خروج",
+        ARRIVE_FACTORY: "فیکٹری آمد",
 
         // Actions
         logExitFactory: "لاگ فیکٹری سے خروج",
@@ -530,6 +542,10 @@ export const translations = {
         "Arrival at Warehouse": "गोदाम आगमन",
         "Exit Warehouse": "गोदाम से निकास",
         "Arrival at Factory": "फ़ैक्टरी आगमन",
+        EXIT_FACTORY: "फ़ैक्टरी से निकास",
+        ARRIVE_WAREHOUSE: "गोदाम आगमन",
+        EXIT_WAREHOUSE: "गोदाम से निकास",
+        ARRIVE_FACTORY: "फ़ैक्टरी आगमन",
 
         // Actions
         logExitFactory: "फ़ैक्टरी निकास लॉग करें",
