@@ -92,7 +92,7 @@ class Trip(TripBase):
         orm_mode = True
 
 class TripLogUpdate(BaseModel):
-    id: int
+    id: Optional[int] = None
     timestamp: Optional[datetime] = None
     address: Optional[str] = None
     state: Optional[TripState] = None

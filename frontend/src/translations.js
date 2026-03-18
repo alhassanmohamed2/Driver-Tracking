@@ -158,6 +158,9 @@ export const translations = {
         clear: "Clear",
         unknown: "Unknown",
         na: "N/A",
+        addEvent: "Add New Event",
+        removeEvent: "Remove Event",
+        stateLabel: "Event Type",
 
         // ─── Analytics Dashboard ───
         dashboard: "Dashboard",
@@ -377,6 +380,9 @@ export const translations = {
         clear: "مسح",
         unknown: "غير معروف",
         na: "غير متوفر",
+        addEvent: "إضافة حدث جديد",
+        removeEvent: "حذف الحدث",
+        stateLabel: "نوع الحدث",
 
         // ─── Analytics Dashboard ───
         dashboard: "لوحة المعلومات",

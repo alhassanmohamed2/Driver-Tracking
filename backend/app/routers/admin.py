@@ -149,19 +149,44 @@ def update_trip(trip_id: int, trip_update: schemas.TripUpdate, current_user: mod
     if trip_update.start_date is not None:
         trip.start_date = ensure_saudi_naive(trip_update.start_date)
         
-    if trip_update.logs:
-        for log_update in trip_update.logs:
-            log = db.query(models.TripLog).filter(models.TripLog.id == log_update.id, models.TripLog.trip_id == trip_id).first()
-            if log:
-                if log_update.timestamp is not None:
-                    log.timestamp = ensure_saudi_naive(log_update.timestamp)
-                if log_update.address is not None:
-                    log.address = log_update.address
-                if log_update.state is not None:
-                    log.state = log_update.state
+    if trip_update.logs is not None:
+        # 1. Identify existing logs vs logs to delete
+        current_logs = db.query(models.TripLog).filter(models.TripLog.trip_id == trip_id).all()
+        current_log_ids = {log.id for log in current_logs}
+        received_log_ids = {l.id for l in trip_update.logs if l.id is not None}
+        
+        logs_to_delete = current_log_ids - received_log_ids
+        if logs_to_delete:
+            db.query(models.TripLog).filter(models.TripLog.id.in_(logs_to_delete)).delete(synchronize_session=False)
 
-        # Re-sync flattened timestamp/address columns on Trip from updated logs
+        # 2. Update or Create logs
+        for log_data in trip_update.logs:
+            if log_data.id:
+                # Update existing
+                log = db.query(models.TripLog).filter(models.TripLog.id == log_data.id).first()
+                if log:
+                    if log_data.timestamp is not None:
+                        log.timestamp = ensure_saudi_naive(log_data.timestamp)
+                    if log_data.address is not None:
+                        log.address = log_data.address
+                    if log_data.state is not None:
+                        log.state = log_data.state
+            else:
+                # Create new
+                new_log = models.TripLog(
+                    trip_id=trip_id,
+                    state=log_data.state,
+                    timestamp=ensure_saudi_naive(log_data.timestamp) if log_data.timestamp else now_saudi(),
+                    address=log_data.address,
+                    latitude=0.0,
+                    longitude=0.0
+                )
+                db.add(new_log)
+
+        # 3. Re-sync flattened columns from ALL current logs (after changes)
+        db.flush() # Ensure new logs have IDs if needed, though we query again
         all_logs = db.query(models.TripLog).filter(models.TripLog.trip_id == trip_id).all()
+        
         # Reset flattened columns
         trip.exit_factory_time = None
         trip.exit_factory_address = None
@@ -171,8 +196,9 @@ def update_trip(trip_id: int, trip_update: schemas.TripUpdate, current_user: mod
         trip.exit_warehouse_address = None
         trip.arrive_factory_time = None
         trip.arrive_factory_address = None
-        # Re-populate from current log data (last log of each state wins)
-        for log in all_logs:
+        
+        # Re-populate (sort by timestamp so last state wins if multiples, though usually it's unique)
+        for log in sorted(all_logs, key=lambda x: x.id):
             if log.state == models.TripState.EXIT_FACTORY:
                 trip.exit_factory_time = log.timestamp
                 trip.exit_factory_address = log.address

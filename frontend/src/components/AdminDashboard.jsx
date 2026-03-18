@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -1326,19 +1326,45 @@ const AdminDashboard = () => {
 
                                 <div className="border-t pt-4">
                                     <h4 className="font-bold text-gray-800 mb-2">{t('tripLogsEvents')}</h4>
-                                    <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 pb-2">
                                         {tripForm.logs && tripForm.logs.map((log, index) => (
-                                            <div key={log.id} className="p-3 bg-gray-50 rounded-lg border">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <span className="font-bold text-xs uppercase text-gray-500">{t(log.state) || log.state}</span>
-                                                </div>
-                                                <div className="grid grid-cols-1 gap-2">
+                                            <div key={log.id || `new-${index}`} className="p-3 bg-gray-50 rounded-lg border group relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newLogs = tripForm.logs.filter((_, i) => i !== index);
+                                                        setTripForm({ ...tripForm, logs: newLogs });
+                                                    }}
+                                                    className="absolute -top-2 -right-2 bg-white border border-red-200 text-red-500 hover:bg-red-50 p-1.5 rounded-full shadow-sm"
+                                                    title={t('removeEvent') || 'Remove Event'}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-xs text-gray-500 block mb-1">{t('timeLabel')}</label>
+                                                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">{t('stateLabel') || 'Event Type'}</label>
+                                                        <select
+                                                            className="w-full px-2 py-1.5 text-sm border rounded bg-white font-medium text-gray-700"
+                                                            value={log.state}
+                                                            onChange={e => {
+                                                                const newLogs = [...tripForm.logs];
+                                                                newLogs[index].state = e.target.value;
+                                                                setTripForm({ ...tripForm, logs: newLogs });
+                                                            }}
+                                                        >
+                                                            <option value="EXIT_FACTORY">{t('EXIT_FACTORY') || 'EXIT_FACTORY'}</option>
+                                                            <option value="ARRIVE_WAREHOUSE">{t('ARRIVE_WAREHOUSE') || 'ARRIVE_WAREHOUSE'}</option>
+                                                            <option value="EXIT_WAREHOUSE">{t('EXIT_WAREHOUSE') || 'EXIT_WAREHOUSE'}</option>
+                                                            <option value="ARRIVE_FACTORY">{t('ARRIVE_FACTORY') || 'ARRIVE_FACTORY'}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">{t('timeLabel')}</label>
                                                         <input
                                                             type="datetime-local"
-                                                            className="w-full px-2 py-1 text-sm border rounded"
-                                                            value={log.timestamp ? log.timestamp.slice(0, 16) : ''}
+                                                            className="w-full px-2 py-1.5 text-sm border rounded"
+                                                            value={log.timestamp ? (log.timestamp.includes('Z') ? log.timestamp.slice(0, 16) : log.timestamp.slice(0, 16)) : ''}
                                                             onChange={e => {
                                                                 const newLogs = [...tripForm.logs];
                                                                 newLogs[index].timestamp = e.target.value;
@@ -1346,11 +1372,11 @@ const AdminDashboard = () => {
                                                             }}
                                                         />
                                                     </div>
-                                                    <div>
-                                                        <label className="text-xs text-gray-500 block mb-1">{t('locationAddress')}</label>
+                                                    <div className="sm:col-span-2">
+                                                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">{t('locationAddress')}</label>
                                                         <input
                                                             type="text"
-                                                            className="w-full px-2 py-1 text-sm border rounded"
+                                                            className="w-full px-2 py-1.5 text-sm border rounded"
                                                             value={log.address || ''}
                                                             onChange={e => {
                                                                 const newLogs = [...tripForm.logs];
@@ -1363,6 +1389,17 @@ const AdminDashboard = () => {
                                                 </div>
                                             </div>
                                         ))}
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newLogs = [...tripForm.logs, { state: 'EXIT_FACTORY', timestamp: new Date().toISOString().slice(0, 16), address: '' }];
+                                                setTripForm({ ...tripForm, logs: newLogs });
+                                            }}
+                                            className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50/30 transition-all flex items-center justify-center gap-2 font-medium text-sm"
+                                        >
+                                            <Plus size={16} /> {t('addEvent') || 'Add Event'}
+                                        </button>
                                     </div>
                                 </div>
 
