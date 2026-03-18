@@ -161,6 +161,7 @@ export const translations = {
         addEvent: "Add New Event",
         removeEvent: "Remove Event",
         stateLabel: "Event Type",
+        viewOnMap: "View on Map",
 
         // ─── Analytics Dashboard ───
         dashboard: "Dashboard",
@@ -383,6 +384,7 @@ export const translations = {
         addEvent: "إضافة حدث جديد",
         removeEvent: "حذف الحدث",
         stateLabel: "نوع الحدث",
+        viewOnMap: "عرض على الخريطة",
 
         // ─── Analytics Dashboard ───
         dashboard: "لوحة المعلومات",

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -694,6 +694,16 @@ const AdminDashboard = () => {
     const tripsPerPage = 20;
     const navigate = useNavigate();
 
+    const formatAddress = (address) => {
+        if (!address) return '';
+        const parts = address.split(',').map(p => p.trim());
+        if (parts.length <= 2) return address;
+        // Simple heuristic for "Road, City"
+        return `${parts[0]}, ${parts[2] || parts[1]}`;
+    };
+
+    const getGoogleMapsLink = (lat, lon) => `https://www.google.com/maps?q=${lat},${lon}`;
+
     useEffect(() => {
         // Direction is now managed by LanguageContext
         fetchTrips();
@@ -1373,7 +1383,19 @@ const AdminDashboard = () => {
                                                         />
                                                     </div>
                                                     <div className="sm:col-span-2">
-                                                        <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">{t('locationAddress')}</label>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-[10px] uppercase font-bold text-gray-400 block">{t('locationAddress')}</label>
+                                                            {log.latitude && log.longitude && (
+                                                                <a
+                                                                    href={getGoogleMapsLink(log.latitude, log.longitude)}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-[10px] text-blue-500 hover:underline flex items-center gap-1"
+                                                                >
+                                                                    <ExternalLink size={10} /> {t('viewOnMap') || 'View on Map'}
+                                                                </a>
+                                                            )}
+                                                        </div>
                                                         <input
                                                             type="text"
                                                             className="w-full px-2 py-1.5 text-sm border rounded"
@@ -1491,7 +1513,22 @@ const AdminDashboard = () => {
                                                 <div className={`absolute ${isRtl ? '-right-[21px]' : '-left-[21px]'} top-1 w-3 h-3 rounded-full bg-blue-500 border-2 border-white`}></div>
                                                 <p className="font-bold text-sm text-gray-800">{t(log.state) || log.state}</p>
                                                 <p className="text-xs text-gray-500 mb-1">{formatSaudiDate(log.timestamp)}</p>
-                                                {log.address && <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">{log.address}</p>}
+                                                {log.address && (
+                                                    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded group/loc">
+                                                        <p className="text-sm text-gray-600 flex-1">{formatAddress(log.address)}</p>
+                                                        {log.latitude && log.longitude && (
+                                                            <a
+                                                                href={getGoogleMapsLink(log.latitude, log.longitude)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-1 text-blue-500 hover:bg-blue-100 rounded transition shrink-0"
+                                                                title={t('viewOnMap') || 'View on Map'}
+                                                            >
+                                                                <ExternalLink size={14} />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))
                                     ) : (
