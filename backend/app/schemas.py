@@ -66,6 +66,26 @@ class TripLog(TripLogBase):
     class Config:
         orm_mode = True
 
+class FuelLogBase(BaseModel):
+    amount_liters: Optional[float] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
+
+class FuelLogCreate(FuelLogBase):
+    pass
+
+class FuelLog(FuelLogBase):
+    id: int
+    trip_id: int
+    driver_id: int
+    timestamp: datetime
+    indicator_image_url: Optional[str] = None
+    machine_image_url: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
 class TripBase(BaseModel):
     pass
 
@@ -87,8 +107,14 @@ class Trip(TripBase):
     arrive_factory_time: Optional[datetime] = None
     arrive_factory_address: Optional[str] = None
     logs: List[TripLog] = []
+    fuel_logs: List[FuelLog] = []
     driver: Optional[User] = None
     car: Optional[Car] = None
+    
+    # Excel Report Fields
+    waiting_reason: Optional[str] = None
+    estimated_trip_time: Optional[str] = None
+    destination_city: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -104,6 +130,11 @@ class TripUpdate(BaseModel):
     status: Optional[TripStatus] = None
     start_date: Optional[datetime] = None
     logs: Optional[List[TripLogUpdate]] = None
+    
+    # Excel Report Fields
+    waiting_reason: Optional[str] = None
+    estimated_trip_time: Optional[str] = None
+    destination_city: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

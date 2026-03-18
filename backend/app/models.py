@@ -66,10 +66,16 @@ class Trip(Base):
     exit_warehouse_address = Column(String(255), nullable=True)
     arrive_factory_time = Column(DateTime, nullable=True)
     arrive_factory_address = Column(String(255), nullable=True)
+    
+    # Excel Report Fields
+    waiting_reason = Column(String(255), nullable=True)
+    estimated_trip_time = Column(String(50), nullable=True) # e.g. "18:00:00"
+    destination_city = Column(String(100), nullable=True)
 
     driver = relationship("User", back_populates="trips")
     car = relationship("Car")
     logs = relationship("TripLog", back_populates="trip")
+    fuel_logs = relationship("FuelLog", back_populates="trip")
 
 class TripLog(Base):
     __tablename__ = "trip_logs"
@@ -83,6 +89,23 @@ class TripLog(Base):
     address = Column(String(255), nullable=True)
 
     trip = relationship("Trip", back_populates="logs")
+
+class FuelLog(Base):
+    __tablename__ = "fuel_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id"))
+    driver_id = Column(Integer, ForeignKey("users.id"))
+    timestamp = Column(DateTime, default=now_saudi)
+    amount_liters = Column(Float, nullable=True)
+    indicator_image_url = Column(String(255), nullable=True)
+    machine_image_url = Column(String(255), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    address = Column(String(255), nullable=True)
+
+    trip = relationship("Trip", back_populates="fuel_logs")
+    driver = relationship("User")
 
 class SystemSetting(Base):
     __tablename__ = "system_settings"

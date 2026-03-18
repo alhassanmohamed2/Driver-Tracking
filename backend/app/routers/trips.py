@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
+import os
+import uuid
 from sqlalchemy import func
 from .. import database, models, schemas
 from ..timezone import now_saudi
@@ -108,3 +110,51 @@ def get_trip_history(
     
     trips = query.order_by(models.Trip.start_date.desc()).all()
     return trips
+
+@router.post("/{trip_id}/fuel", response_model=schemas.FuelLog)
+async def log_fuel_refill(
+    trip_id: int,
+    amount_liters: float = Form(...),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    address: Optional[str] = Form(None),
+    indicator_img: UploadFile = File(...),
+    machine_img: UploadFile = File(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.driver_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Save images
+    # We use app/static/fuel internally, but served as /static/fuel
+    base_dir = "app/static/fuel"
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir, exist_ok=True)
+
+    indicator_fn = f"{trip_id}_ind_{uuid.uuid4().hex[:8]}.png"
+    machine_fn = f"{trip_id}_mac_{uuid.uuid4().hex[:8]}.png"
+
+    with open(f"{base_dir}/{indicator_fn}", "wb") as f:
+        f.write(await indicator_img.read())
+    with open(f"{base_dir}/{machine_fn}", "wb") as f:
+        f.write(await machine_img.read())
+
+    new_fuel_log = models.FuelLog(
+        trip_id=trip_id,
+        driver_id=current_user.id,
+        amount_liters=amount_liters,
+        latitude=latitude,
+        longitude=longitude,
+        address=address,
+        indicator_image_url=f"/static/fuel/{indicator_fn}",
+        machine_image_url=f"/static/fuel/{machine_fn}",
+        timestamp=now_saudi()
+    )
+    db.add(new_fuel_log)
+    db.commit()
+    db.refresh(new_fuel_log)
+    return new_fuel_log

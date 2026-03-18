@@ -65,6 +65,21 @@ export const logTripState = async (tripId, state, latitude, longitude, address) 
     return response.data;
 };
 
+export const logFuelRefill = async (tripId, data) => {
+    const formData = new FormData();
+    formData.append('amount_liters', data.amount_liters);
+    if (data.latitude) formData.append('latitude', data.latitude);
+    if (data.longitude) formData.append('longitude', data.longitude);
+    if (data.address) formData.append('address', data.address);
+    formData.append('indicator_img', data.indicator_img);
+    formData.append('machine_img', data.machine_img);
+
+    const response = await api.post(`/trips/${tripId}/fuel`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+};
+
 export const getTrips = async () => {
     const response = await api.get('/admin/trips');
     return response.data;
@@ -206,6 +221,11 @@ export const restoreBackup = async (filename) => {
 export const saveBackupSettings = async (settings) => {
     const res = await api.post('/admin/backup-settings', settings);
     return res.data;
+};
+
+export const getFuelReports = async () => {
+    const response = await api.get('/admin/fuel-reports');
+    return response.data;
 };
 
 export default api;

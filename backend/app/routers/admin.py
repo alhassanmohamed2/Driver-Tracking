@@ -3,10 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
 from fastapi.responses import Response
 from typing import List, Optional
+from datetime import datetime
 import pandas as pd
 from io import BytesIO
 from .. import database, models, schemas
-from ..timezone import ensure_saudi_naive
+from ..timezone import ensure_saudi_naive, now_saudi
+from ..utils import calculate_trip_distance, estimate_fuel_consumption
 from .auth import get_current_user
 from ..services.backup import create_backup, restore_backup, get_backup_list
 from ..services.scheduler import update_backup_schedule
@@ -168,6 +170,14 @@ def update_trip(trip_id: int, trip_update: schemas.TripUpdate, current_user: mod
         trip.status = trip_update.status
     if trip_update.start_date is not None:
         trip.start_date = ensure_saudi_naive(trip_update.start_date)
+    
+    # Excel Report Fields
+    if trip_update.waiting_reason is not None:
+        trip.waiting_reason = trip_update.waiting_reason
+    if trip_update.estimated_trip_time is not None:
+        trip.estimated_trip_time = trip_update.estimated_trip_time
+    if trip_update.destination_city is not None:
+        trip.destination_city = trip_update.destination_city
         
     if trip_update.logs is not None:
         # 1. Identify existing logs vs logs to delete
@@ -447,4 +457,43 @@ def save_backup_settings(
         print(f"Failed to dynamically update scheduler: {e}")
         
     return {"message": "Backup settings saved"}
+
+@router.get("/fuel-reports")
+def get_fuel_reports(
+    current_user: models.User = Depends(get_current_user), 
+    db: Session = Depends(database.get_db)
+):
+    check_admin(current_user)
+    
+    # Get all trips with their logs and fuel logs
+    trips = db.query(models.Trip).all()
+    
+    reports = []
+    for trip in trips:
+        distance = calculate_trip_distance(trip.logs)
+        estimated_consumption = estimate_fuel_consumption(distance, trip.car.plate if trip.car else None)
+        actual_refills = sum(f.amount_liters for f in trip.fuel_logs if f.amount_liters)
+        
+        reports.append({
+            "id": trip.id,
+            "driver_name": trip.driver.username if trip.driver else "Unknown",
+            "car_plate": trip.car.plate if trip.car else "Unknown",
+            "distance_km": round(distance, 2),
+            "estimated_consumption_liters": round(estimated_consumption, 2),
+            "actual_refills_liters": round(actual_refills, 2),
+            "discrepancy": round(actual_refills - estimated_consumption, 2),
+            "status": trip.status,
+            "fuel_logs": [
+                {
+                    "id": f.id,
+                    "timestamp": f.timestamp,
+                    "amount": f.amount_liters,
+                    "indicator_img": f.indicator_image_url,
+                    "machine_img": f.machine_image_url,
+                    "address": f.address
+                } for f in trip.fuel_logs
+            ]
+        })
+        
+    return reports
 

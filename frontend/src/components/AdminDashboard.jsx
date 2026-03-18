@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings } from '../api';
+import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings, getFuelReports } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus, ExternalLink } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus, ExternalLink, Droplets, Camera } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -631,6 +631,280 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
 };
 
 // ══════════════════════════════════════════════════════════════
+// FuelView — Fuel Monitoring Sub-component
+// ══════════════════════════════════════════════════════════════
+const FuelView = ({ t, isRtl }) => {
+    const [reports, setReports] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedFuelLog, setSelectedFuelLog] = useState(null);
+
+    useEffect(() => {
+        fetchReports();
+    }, []);
+
+    const fetchReports = async () => {
+        setLoading(true);
+        try {
+            const data = await getFuelReports();
+            setReports(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) return <div className="flex justify-center p-12"><RotateCcw className="animate-spin text-blue-600" size={48} /></div>;
+
+    return (
+        <div className="animate-fade-in">
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <Droplets className="text-yellow-600" /> {t('fuelMonitoring')}
+                </h2>
+                <button onClick={fetchReports} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <RotateCcw size={20} className="text-gray-500" />
+                </button>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-widest font-bold">
+                            <th className="px-6 py-4">{t('tripId')}</th>
+                            <th className="px-6 py-4">{t('driverLabel')}</th>
+                            <th className="px-6 py-4">{t('carLabel')}</th>
+                            <th className="px-6 py-4">{t('distanceKm')}</th>
+                            <th className="px-6 py-4">{t('expectedConsumption')}</th>
+                            <th className="px-6 py-4">{t('actualRefills')}</th>
+                            <th className="px-6 py-4">{t('discrepancy')}</th>
+                            <th className="px-6 py-4 text-center">{t('actions')}</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {reports.map((report) => (
+                            <tr key={report.id} className="hover:bg-blue-50/30 transition-colors">
+                                <td className="px-6 py-4 font-bold text-blue-600">#{report.id}</td>
+                                <td className="px-6 py-4 font-medium">{report.driver_name}</td>
+                                <td className="px-6 py-4 text-gray-500 font-mono text-sm">{report.car_plate}</td>
+                                <td className="px-6 py-4 font-bold">{report.distance_km}</td>
+                                <td className="px-6 py-4 text-gray-600">{report.estimated_consumption_liters}</td>
+                                <td className="px-6 py-4 font-bold text-green-600">{report.actual_refills_liters}</td>
+                                <td className={`px-6 py-4 font-bold ${report.discrepancy > 10 ? 'text-red-500 bg-red-50' : report.discrepancy < -10 ? 'text-emerald-500 bg-emerald-50' : 'text-gray-400'}`}>
+                                    {report.discrepancy > 0 ? `+${report.discrepancy}` : report.discrepancy}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    {report.fuel_logs.length > 0 ? (
+                                        <button 
+                                            onClick={() => setSelectedFuelLog(report.fuel_logs[0])}
+                                            className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold hover:bg-blue-100 transition"
+                                        >
+                                            {t('viewPhotos')} ({report.fuel_logs.length})
+                                        </button>
+                                    ) : (
+                                        <span className="text-gray-300 text-xs italic">--</span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Photo Modal */}
+            {selectedFuelLog && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-4xl relative animate-zoom-in">
+                        <button onClick={() => setSelectedFuelLog(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2"><X size={32} /></button>
+                        <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-gray-800 border-b pb-4">
+                            <Droplets className="text-yellow-600" /> {t('fuelMonitoring')} — {t('details')}
+                        </h3>
+                        <div className="grid grid-cols-2 gap-12">
+                            <div className="flex flex-col gap-4">
+                                <label className="text-sm font-bold text-gray-400 uppercase tracking-widest">{t('indicator')}</label>
+                                <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-50 aspect-video bg-slate-100 flex items-center justify-center">
+                                    {selectedFuelLog.indicator_img ? (
+                                        <img src={selectedFuelLog.indicator_img} className="w-full h-full object-cover" />
+                                    ) : <Camera className="text-gray-300" size={64} />}
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-4">
+                                <label className="text-sm font-bold text-gray-400 uppercase tracking-widest">{t('machine')}</label>
+                                <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-50 aspect-video bg-slate-100 flex items-center justify-center">
+                                    {selectedFuelLog.machine_img ? (
+                                        <img src={selectedFuelLog.machine_img} className="w-full h-full object-cover" />
+                                    ) : <Camera className="text-gray-300" size={64} />}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-8 flex justify-between items-end">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-sm text-gray-400">{t('locationAddress')}</span>
+                                <span className="font-bold text-gray-700">{selectedFuelLog.address || t('unknown')}</span>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                                <span className="text-xs text-gray-400 font-mono">{new Date(selectedFuelLog.timestamp).toLocaleString()}</span>
+                                <span className="text-3xl font-black text-blue-600">{selectedFuelLog.amount} L</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ══════════════════════════════════════════════════════════════
+// ExcelView — Specialized Report Table matching example.xlsx
+// ══════════════════════════════════════════════════════════════
+const ExcelView = ({ trips, t, isRtl, formatSaudiDate }) => {
+    // Helper to parse naive Saudi dates (UTC+3)
+    const parseSaudiDate = (dateStr) => {
+        if (!dateStr) return null;
+        let s = dateStr.replace(' ', 'T');
+        if (!s.includes('Z') && !s.includes('+')) s += '+03:00';
+        return new Date(s);
+    };
+
+    const formatDuration = (ms) => {
+        if (ms === null || ms === undefined || ms < 0) return '—';
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        let parts = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+        // Only show seconds if total is < 1 min
+        if (hours === 0 && minutes === 0) parts.push(`${seconds}s`);
+        
+        return parts.join(' ') || '0m';
+    };
+
+    // Parse estimated time string (e.g. "18:00:00") to milliseconds
+    const parseDurationString = (durStr) => {
+        if (!durStr) return 0;
+        const parts = durStr.split(':').map(Number);
+        if (parts.length === 3) {
+            return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+        } else if (parts.length === 2) {
+            return (parts[0] * 3600 + parts[1] * 60) * 1000;
+        }
+        return 0;
+    };
+
+    const processedRows = useMemo(() => {
+        return trips.map((tr, index) => {
+            const tExitF = parseSaudiDate(tr.exit_factory_time);
+            const tArriveW = parseSaudiDate(tr.arrive_warehouse_time);
+            const tExitW = parseSaudiDate(tr.exit_warehouse_time);
+            const tArriveF = parseSaudiDate(tr.arrive_factory_time);
+
+            const toWarehouseMs = (tExitF && tArriveW) ? (tArriveW - tExitF) : null;
+            const waitingMs = (tArriveW && tExitW) ? (tExitW - tArriveW) : null;
+            const toFactoryMs = (tExitW && tArriveF) ? (tArriveF - tExitW) : null;
+            
+            // Total Actual Time = Time to Warehouse + Time to Factory (Excluding Waiting)
+            const actualTotalMs = (toWarehouseMs || 0) + (toFactoryMs || 0);
+            
+            const estimatedMs = parseDurationString(tr.estimated_trip_time);
+            const differenceMs = estimatedMs > 0 ? (estimatedMs - actualTotalMs) : null;
+
+            return {
+                ...tr,
+                index: index + 1,
+                toWarehouse: formatDuration(toWarehouseMs),
+                waiting: formatDuration(waitingMs),
+                toFactory: formatDuration(toFactoryMs),
+                actualTotal: formatDuration(actualTotalMs),
+                difference: formatDuration(differenceMs),
+                isDelay: differenceMs < 0
+            };
+        });
+    }, [trips]);
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs text-start whitespace-nowrap border-collapse">
+                    <thead>
+                        <tr className="bg-slate-800 text-white">
+                            <th className="p-3 border border-slate-700">{t('idLabel')}</th>
+                            <th className="p-3 border border-slate-700">{t('sequence')}</th>
+                            <th className="p-3 border border-slate-700">{t('carPlate')}</th>
+                            <th className="p-3 border border-slate-700">{t('exitFactoryShort')}</th>
+                            <th className="p-3 border border-slate-700">{t('arriveWarehouseShort')}</th>
+                            <th className="p-3 border border-slate-700 bg-blue-900/50">{t('tripTimeToWarehouse')}</th>
+                            <th className="p-3 border border-slate-700">{t('exitWarehouseShort')}</th>
+                            <th className="p-3 border border-slate-700">{t('arriveFactoryShort')}</th>
+                            <th className="p-3 border border-slate-700 bg-blue-900/50">{t('returnTimeToFactory')}</th>
+                            <th className="p-3 border border-slate-700 text-amber-400">{t('waitingTimeAtWarehouse')}</th>
+                            <th className="p-3 border border-slate-700">{t('waitingReason')}</th>
+                            <th className="p-3 border border-slate-700 font-bold bg-green-900/40">{t('totalActualTime')}</th>
+                            <th className="p-3 border border-slate-700">{t('totalEstimatedTime')}</th>
+                            <th className="p-3 border border-slate-700">{t('difference')}</th>
+                            <th className="p-3 border border-slate-700">{t('delay')}</th>
+                            <th className="p-3 border border-slate-700">{t('city')}</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {processedRows.map((row) => (
+                            <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="p-2 border text-center font-mono text-gray-400">#{row.id}</td>
+                                <td className="p-2 border text-center">{row.index}</td>
+                                <td className="p-2 border font-bold text-slate-800 text-center">{row.car?.plate || row.driver?.car?.plate || row.driver?.car_plate || '—'}</td>
+                                <td className="p-2 border text-center text-gray-600">{row.exit_factory_time ? formatSaudiDate(row.exit_factory_time).split(' ')[1] : '—'}</td>
+                                <td className="p-2 border text-center text-gray-600">{row.arrive_warehouse_time ? formatSaudiDate(row.arrive_warehouse_time).split(' ')[1] : '—'}</td>
+                                <td className="p-2 border text-center font-medium bg-blue-50/50">{row.toWarehouse}</td>
+                                <td className="p-2 border text-center text-gray-600">{row.exit_warehouse_time ? formatSaudiDate(row.exit_warehouse_time).split(' ')[1] : '—'}</td>
+                                <td className="p-2 border text-center text-gray-600">{row.arrive_factory_time ? formatSaudiDate(row.arrive_factory_time).split(' ')[1] : '—'}</td>
+                                <td className="p-2 border text-center font-medium bg-blue-50/50">{row.toFactory}</td>
+                                <td className="p-2 border text-center font-bold text-amber-600">{row.waiting}</td>
+                                <td className="p-2 border text-start truncate max-w-[150px]" title={row.waiting_reason}>{row.waiting_reason || '—'}</td>
+                                <td className="p-2 border text-center font-black bg-green-50 text-green-700">{row.actualTotal}</td>
+                                <td className="p-2 border text-center text-indigo-600 font-bold">{row.estimated_trip_time || '—'}</td>
+                                <td className="p-2 border text-center font-medium">{row.difference}</td>
+                                <td className={`p-2 border text-center font-bold ${row.isDelay ? 'text-red-500' : 'text-emerald-500'}`}>
+                                    {row.isDelay ? `+${row.difference}` : row.difference}
+                                </td>
+                                <td className="p-2 border text-start font-medium text-slate-700">{row.destination_city || '—'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {processedRows.length === 0 && (
+                    <div className="p-10 text-center text-gray-400 italic font-medium">
+                        {t('noTripsFoundAdmin')}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ══════════════════════════════════════════════════════════════
+// City Estimations from trips_estimation.xlsx
+// ══════════════════════════════════════════════════════════════
+const CITY_ESTIMATIONS = {
+    "ينبع": "45:00:00", "نيوم": "65:00:00", "رابغ": "45:00:00", "مكه": "60:00:00", "الرياض": "30:00:00",
+    "عفيف": "15:00:00", "الدوادمي": "15:00:00", "حفر الباطن": "36:00:00", "رفحاء": "36:00:00", "سكاكا": "48:00:00",
+    "عرعر": "55:00:00", "القريات": "55:00:00", "حائل": "18:00:00", "الاحساء": "48:00:00", "الدمام": "48:00:00",
+    "القطيف": "48:00:00", "الخفجي": "48:00:00", "الخرمة": "40:00:00", "الطائف": "48:00:00", "عنيزه": "08:00:00",
+    "الزلفي": "18:00:00", "الرس": "08:00:00", "البدائع": "03:00:00", "بريده": "05:00:00", "طريف": "74:00:00",
+    "ضبا": "76:00:00", "تربه": "43:00:00", "جده": "63:00:00", "المزاحميه": "36:00:00", "حوطة بني تميم": "36:00:00",
+    "بدر": "44:00:00", "املج": "55:00:00", "القويعية": "30:00:00", "الريان": "30:00:00", "العلا": "57:00:00",
+    "تبوك": "69:00:00", "ساجر": "08:00:00", "خميس مشيط": "68:00:00", "تثليث": "72:00:00", "بيشه": "56:00:00",
+    "القنفده": "63:00:00", "المظيلف": "85:00:00", "طريب": "85:00:00", "جازان / صبيا": "96:00:00", "نجران": "85:00:00",
+    "شرورة": "96:00:00", "ظهران الجنوب": "84:00:00", "محايل عسير": "74:00:00", "أبها": "75:00:00", "رجال ألمع": "75:00:00",
+    "المجاردة": "97:00:00", "البرك": "68:00:00", "الرين": "24:00:00", "الخرج": "30:00:00", "حقل": "80:00:00",
+    "البدع": "85:00:00", "المجمعه": "18:00:00", "الهميجه": "30:00:00", "البيكرية": "05:00:00", "الوجه": "70:00:00",
+    "الافلاج": "36:00:00", "بارق": "90:00:00", "سدير": "24:00:00", "الباحه": "65:00:00", "الشنان": "18:00:00",
+    "خيبر": "48:00:00", "النعيرية": "48:00:00", "وادي الدواسر": "75:00:00", "الرفيعه": "48:00:00", "الهلاليه": "00:00:00",
+    "رفائع الجمش": "15:00:00", "شقراء": "30:00:00", "البكرية": "05:00:00", "الرويضة": "36:00:00", "ماتريال": "05:00:00"
+};
+
+// ══════════════════════════════════════════════════════════════
 const AdminDashboard = () => {
     const { language, setLanguage, toggleLanguage, t } = useLanguage();
     const isRtl = language === 'ar';
@@ -665,7 +939,7 @@ const AdminDashboard = () => {
     // Car Form State
     const [showCarForm, setShowCarForm] = useState(false);
     const [editingCarId, setEditingCarId] = useState(null);
-    const [carForm, setCarForm] = useState({ plate: '', model: '', fuelCapacity: '' });
+    const [carForm, setCarForm] = useState({ plate: '', model: '', fuelCapacity: '600' });
 
     // Admin Password Form State
     const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -684,7 +958,15 @@ const AdminDashboard = () => {
     // Trip Edit Form State
     const [showTripEditForm, setShowTripEditForm] = useState(false);
     const [editingTripId, setEditingTripId] = useState(null);
-    const [tripForm, setTripForm] = useState({ driverId: '', status: '', startDate: '', logs: [] });
+    const [tripForm, setTripForm] = useState({ 
+        driverId: '', 
+        status: '', 
+        startDate: '', 
+        waitingReason: '', 
+        estimatedTripTime: '', 
+        destinationCity: '',
+        logs: [] 
+    });
 
     const [message, setMessage] = useState('');
     const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -712,6 +994,14 @@ const AdminDashboard = () => {
         fetchSettings();
         fetchBackups();
     }, []);
+
+    useEffect(() => {
+        if (carForm.plate === '9728' || carForm.plate === '9573') {
+            setCarForm(prev => ({ ...prev, fuelCapacity: '800' }));
+        } else if (carForm.plate && carForm.plate !== '9728' && carForm.plate !== '9573' && carForm.fuelCapacity === '800') {
+            setCarForm(prev => ({ ...prev, fuelCapacity: '600' }));
+        }
+    }, [carForm.plate]);
 
     const fetchSettings = async () => {
         try {
@@ -933,6 +1223,9 @@ const AdminDashboard = () => {
             driverId: trip.driver_id,
             status: trip.status,
             startDate: trip.start_date ? trip.start_date.slice(0, 16) : '',
+            waitingReason: trip.waiting_reason || '',
+            estimatedTripTime: trip.estimated_trip_time || '',
+            destinationCity: trip.destination_city || '',
             logs: trip.logs ? trip.logs.map(l => ({
                 id: l.id,
                 state: l.state,
@@ -972,6 +1265,11 @@ const AdminDashboard = () => {
         return d.toLocaleTimeString(isRtl ? 'ar-SA' : 'en-US', { timeZone: 'Asia/Riyadh', hour: '2-digit', minute: '2-digit' });
     };
 
+    const handleCityChange = (city) => {
+        const est = CITY_ESTIMATIONS[city] || '';
+        setTripForm(prev => ({ ...prev, destinationCity: city, estimatedTripTime: est }));
+    };
+
     const handleSaveTrip = async (e) => {
         e.preventDefault();
         setMessage('');
@@ -980,6 +1278,9 @@ const AdminDashboard = () => {
                 driver_id: parseInt(tripForm.driverId),
                 status: tripForm.status,
                 start_date: tripForm.startDate || null,
+                waiting_reason: tripForm.waitingReason || null,
+                estimated_trip_time: tripForm.estimatedTripTime || null,
+                destination_city: tripForm.destinationCity || null,
                 logs: tripForm.logs.map(l => ({
                     id: l.id,
                     timestamp: l.timestamp || null,
@@ -1108,9 +1409,11 @@ const AdminDashboard = () => {
                         <button onClick={() => setViewMode('trips')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'trips' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('trips')}</button>
                         <button onClick={() => setViewMode('cars')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'cars' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('cars')}</button>
                         <button onClick={() => setViewMode('drivers')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'drivers' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('drivers')}</button>
+                        <button onClick={() => setViewMode('excel')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'excel' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('excelView')}</button>
+                        <button onClick={() => setViewMode('fuel')} className={`px-3 py-1 text-xs md:text-sm font-medium rounded-md transition ${viewMode === 'fuel' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500'}`}>{t('fuelMonitoring')}</button>
                     </div>
 
-                    {viewMode === 'trips' && (
+                    {(viewMode === 'trips' || viewMode === 'excel') && (
                         <>
                             <select
                                 value={statusFilter}
@@ -1329,7 +1632,7 @@ const AdminDashboard = () => {
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative max-h-[90vh] overflow-y-auto">
                             <button onClick={() => setShowTripEditForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit className="w-5 h-5" /> {t('editTrip')} #{editingTripId}</h3>
+                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit className="w-5 h-5" /> {t('editTrip')} #{editingTripId}</h3>
                             <form onSubmit={handleSaveTrip} className="flex flex-col gap-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
@@ -1351,6 +1654,31 @@ const AdminDashboard = () => {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('startDate')}</label>
                                     <input type="datetime-local" className="w-full px-4 py-2 border rounded-lg" value={tripForm.startDate} onChange={e => setTripForm({ ...tripForm, startDate: e.target.value })} />
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('city') || 'Destination City'}</label>
+                                        <input 
+                                            list="cities"
+                                            className="w-full px-4 py-2 border rounded-lg" 
+                                            value={tripForm.destinationCity || ''} 
+                                            onChange={e => handleCityChange(e.target.value)} 
+                                            placeholder="Dammam" 
+                                        />
+                                        <datalist id="cities">
+                                            {Object.keys(CITY_ESTIMATIONS).map(c => <option key={c} value={c} />)}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('estimatedTime') || 'Estimated Trip Time (HH:MM:SS)'}</label>
+                                        <input type="text" className="w-full px-4 py-2 border rounded-lg" value={tripForm.estimatedTripTime || ''} onChange={e => setTripForm({ ...tripForm, estimatedTripTime: e.target.value })} placeholder="18:00:00" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('waitingReason') || 'Waiting Reason'}</label>
+                                    <textarea className="w-full px-4 py-2 border rounded-lg h-20" value={tripForm.waitingReason || ''} onChange={e => setTripForm({ ...tripForm, waitingReason: e.target.value })} placeholder="Logistics delay..." />
                                 </div>
 
                                 <div className="border-t pt-4">
@@ -1561,6 +1889,13 @@ const AdminDashboard = () => {
 
                 {/* ═══ ANALYTICS DASHBOARD ═══ */}
                 {viewMode === 'dashboard' && <DashboardView trips={trips} drivers={drivers} cars={cars} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} setViewMode={setViewMode} setStatusFilter={setStatusFilter} setDateFrom={setDateFrom} setDateTo={setDateTo} setSelectedTrip={setSelectedTrip} setShowDetailsModal={setShowDetailsModal} />}
+
+                {viewMode === 'excel' && (
+                    <ExcelView trips={displayedTrips} t={t} isRtl={isRtl} formatSaudiDate={formatSaudiDate} />
+                )}
+                {viewMode === 'fuel' && (
+                    <FuelView t={t} isRtl={isRtl} />
+                )}
 
                 {/* ═══ TRIPS TABLE ═══ */}
                 {viewMode === 'trips' && (
