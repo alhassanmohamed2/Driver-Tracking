@@ -136,6 +136,18 @@ class TripUpdate(BaseModel):
     estimated_trip_time: Optional[str] = None
     destination_city: Optional[str] = None
 
+class CarFuelReport(BaseModel):
+    car_id: int
+    car_plate: str
+    car_model: Optional[str] = None
+    fuel_capacity: Optional[float] = None
+    total_distance_km: float
+    total_estimated_consumption: float
+    total_actual_refills: float
+    avg_consumption_l100km: float
+    discrepancy: float
+    fuel_logs: List[dict] = []
+
 class Token(BaseModel):
     access_token: str
     token_type: str

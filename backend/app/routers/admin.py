@@ -458,41 +458,65 @@ def save_backup_settings(
         
     return {"message": "Backup settings saved"}
 
-@router.get("/fuel-reports")
-def get_fuel_reports(
+@router.get("/car-fuel-reports", response_model=List[schemas.CarFuelReport])
+def get_car_fuel_reports(
     current_user: models.User = Depends(get_current_user), 
     db: Session = Depends(database.get_db)
 ):
     check_admin(current_user)
     
-    # Get all trips with their logs and fuel logs
-    trips = db.query(models.Trip).all()
+    # Get all cars
+    cars = db.query(models.Car).all()
     
     reports = []
-    for trip in trips:
-        distance = calculate_trip_distance(trip.logs)
-        estimated_consumption = estimate_fuel_consumption(distance, trip.car.plate if trip.car else None)
-        actual_refills = sum(f.amount_liters for f in trip.fuel_logs if f.amount_liters)
+    for car in cars:
+        total_distance = 0.0
+        total_refills = 0.0
+        all_fuel_logs = []
         
-        reports.append({
-            "id": trip.id,
-            "driver_name": trip.driver.username if trip.driver else "Unknown",
-            "car_plate": trip.car.plate if trip.car else "Unknown",
-            "distance_km": round(distance, 2),
-            "estimated_consumption_liters": round(estimated_consumption, 2),
-            "actual_refills_liters": round(actual_refills, 2),
-            "discrepancy": round(actual_refills - estimated_consumption, 2),
-            "status": trip.status,
-            "fuel_logs": [
-                {
+        # Get all trips for this car with logs and fuel logs
+        # Filter distance to completed trips as requested in implementation plan
+        trips = db.query(models.Trip).filter(models.Trip.car_id == car.id).all()
+        
+        for trip in trips:
+            # Only count distance for completed trips
+            if trip.status == models.TripStatus.COMPLETED:
+                dist = calculate_trip_distance(trip.logs)
+                total_distance += dist
+            
+            for f in trip.fuel_logs:
+                if f.amount_liters:
+                    total_refills += f.amount_liters
+                
+                all_fuel_logs.append({
                     "id": f.id,
                     "timestamp": f.timestamp,
                     "amount": f.amount_liters,
                     "indicator_img": f.indicator_image_url,
                     "machine_img": f.machine_image_url,
-                    "address": f.address
-                } for f in trip.fuel_logs
-            ]
+                    "address": f.address,
+                    "driver_name": f.driver.username if f.driver else "Unknown",
+                    "trip_id": trip.id
+                })
+        
+        estimated_consumption = estimate_fuel_consumption(total_distance, car.plate)
+        
+        # Calculate Average Consumption (L/100km)
+        avg_consumption = 0.0
+        if total_distance > 0:
+            avg_consumption = (total_refills / total_distance) * 100
+        
+        reports.append({
+            "car_id": car.id,
+            "car_plate": car.plate,
+            "car_model": car.model,
+            "fuel_capacity": car.fuel_capacity,
+            "total_distance_km": round(total_distance, 2),
+            "total_estimated_consumption": round(estimated_consumption, 2),
+            "total_actual_refills": round(total_refills, 2),
+            "avg_consumption_l100km": round(avg_consumption, 2),
+            "discrepancy": round(total_refills - estimated_consumption, 2),
+            "fuel_logs": sorted(all_fuel_logs, key=lambda x: str(x['timestamp']), reverse=True)
         })
         
     return reports

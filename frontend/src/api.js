@@ -223,8 +223,8 @@ export const saveBackupSettings = async (settings) => {
     return res.data;
 };
 
-export const getFuelReports = async () => {
-    const response = await api.get('/admin/fuel-reports');
+export const getCarFuelReports = async () => {
+    const response = await api.get('/admin/car-fuel-reports');
     return response.data;
 };
 

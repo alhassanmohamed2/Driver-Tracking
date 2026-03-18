@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { startTrip, logTripState, getActiveTrip, getSettings, logFuelRefill } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, CheckCircle, LogOut, Truck, Home, PlayCircle, Loader, History, Activity, Languages, Droplets, Camera, Fuel } from 'lucide-react';
+import { MapPin, Navigation, CheckCircle, LogOut, Truck, Home, PlayCircle, Loader, History, Activity, Languages, Droplets, Camera, Fuel, X } from 'lucide-react';
 import DriverHistory from './DriverHistory';
 import { useLanguage } from '../contexts/LanguageContext';
 

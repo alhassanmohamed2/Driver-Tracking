@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings, getFuelReports } from '../api';
+import { getTrips, exportTrips, createDriver, getDrivers, updateDriver, deleteDriver, changeAdminPassword, getCars, createCar, deleteCar, deleteTrip, updateTrip, getSettings, updateSettings, uploadLogo, getBackups, createBackup, restoreBackup, saveBackupSettings, getCarFuelReports } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus, ExternalLink, Droplets, Camera } from 'lucide-react';
+import { Download, LayoutDashboard, LogOut, UserPlus, Car, Users, Trash2, Edit, Save, X, Lock, PlusCircle, MapPin, Settings, Upload, Globe, Menu, BarChart3, Activity, Clock, TrendingUp, Truck, CheckCircle2, Database, RotateCcw, Play, PlayCircle, Home, Calendar, Plus, ExternalLink, Droplets, Camera, History } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
@@ -636,6 +636,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
 const FuelView = ({ t, isRtl }) => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedCarHistory, setSelectedCarHistory] = useState(null);
     const [selectedFuelLog, setSelectedFuelLog] = useState(null);
 
     useEffect(() => {
@@ -645,8 +646,8 @@ const FuelView = ({ t, isRtl }) => {
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const data = await getFuelReports();
-            setReports(data);
+            const data = await getCarFuelReports();
+            setReports(data || []);
         } catch (err) {
             console.error(err);
         } finally {
@@ -671,39 +672,35 @@ const FuelView = ({ t, isRtl }) => {
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 text-gray-500 uppercase text-[10px] tracking-widest font-bold">
-                            <th className="px-6 py-4">{t('tripId')}</th>
-                            <th className="px-6 py-4">{t('driverLabel')}</th>
-                            <th className="px-6 py-4">{t('carLabel')}</th>
-                            <th className="px-6 py-4">{t('distanceKm')}</th>
-                            <th className="px-6 py-4">{t('expectedConsumption')}</th>
-                            <th className="px-6 py-4">{t('actualRefills')}</th>
+                            <th className="px-6 py-4">{t('carPlate')}</th>
+                            <th className="px-6 py-4">{t('fuelCapacity')}</th>
+                            <th className="px-6 py-4">{t('totalDistance')}</th>
+                            <th className="px-6 py-4">{t('avgConsumption')}</th>
+                            <th className="px-6 py-4">{t('totalEstimated')}</th>
+                            <th className="px-6 py-4">{t('totalActual')}</th>
                             <th className="px-6 py-4">{t('discrepancy')}</th>
                             <th className="px-6 py-4 text-center">{t('actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {reports.map((report) => (
-                            <tr key={report.id} className="hover:bg-blue-50/30 transition-colors">
-                                <td className="px-6 py-4 font-bold text-blue-600">#{report.id}</td>
-                                <td className="px-6 py-4 font-medium">{report.driver_name}</td>
-                                <td className="px-6 py-4 text-gray-500 font-mono text-sm">{report.car_plate}</td>
-                                <td className="px-6 py-4 font-bold">{report.distance_km}</td>
-                                <td className="px-6 py-4 text-gray-600">{report.estimated_consumption_liters}</td>
-                                <td className="px-6 py-4 font-bold text-green-600">{report.actual_refills_liters}</td>
+                            <tr key={report.car_id} className="hover:bg-blue-50/30 transition-colors">
+                                <td className="px-6 py-4 text-gray-800 font-mono font-bold text-lg">{report.car_plate}</td>
+                                <td className="px-6 py-4 text-gray-500">{report.fuel_capacity || '--'} L</td>
+                                <td className="px-6 py-4 font-bold">{report.total_distance_km}</td>
+                                <td className="px-6 py-4 text-blue-600 font-bold">{report.avg_consumption_l100km}</td>
+                                <td className="px-6 py-4 text-gray-600">{report.total_estimated_consumption}</td>
+                                <td className="px-6 py-4 font-bold text-green-600">{report.total_actual_refills}</td>
                                 <td className={`px-6 py-4 font-bold ${report.discrepancy > 10 ? 'text-red-500 bg-red-50' : report.discrepancy < -10 ? 'text-emerald-500 bg-emerald-50' : 'text-gray-400'}`}>
                                     {report.discrepancy > 0 ? `+${report.discrepancy}` : report.discrepancy}
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                    {report.fuel_logs.length > 0 ? (
-                                        <button 
-                                            onClick={() => setSelectedFuelLog(report.fuel_logs[0])}
-                                            className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold hover:bg-blue-100 transition"
-                                        >
-                                            {t('viewPhotos')} ({report.fuel_logs.length})
-                                        </button>
-                                    ) : (
-                                        <span className="text-gray-300 text-xs italic">--</span>
-                                    )}
+                                    <button 
+                                        onClick={() => setSelectedCarHistory(report)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 shadow-md transition flex items-center gap-2 mx-auto"
+                                    >
+                                        <History size={14} /> {t('viewHistory')} ({report.fuel_logs.length})
+                                    </button>
                                 </td>
                             </tr>
                         ))}
@@ -711,13 +708,76 @@ const FuelView = ({ t, isRtl }) => {
                 </table>
             </div>
 
-            {/* Photo Modal */}
+            {/* Car Fuel History Modal */}
+            {selectedCarHistory && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[90] p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col relative animate-zoom-in">
+                        <button onClick={() => setSelectedCarHistory(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2"><X size={32} /></button>
+                        
+                        <div className="mb-6 border-b pb-4">
+                            <h3 className="text-2xl font-bold flex items-center gap-3 text-gray-800">
+                                <Truck className="text-blue-600" /> {t('fuelHistory')} — <span className="text-blue-600 font-mono">{selectedCarHistory.car_plate}</span>
+                            </h3>
+                            <p className="text-gray-400 text-sm mt-1">{selectedCarHistory.car_model || ''}</p>
+                        </div>
+
+                        <div className="flex-1 overflow-auto rounded-xl border border-gray-100">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="sticky top-0 bg-gray-50 z-10">
+                                    <tr className="text-gray-500 uppercase text-[10px] tracking-widest font-bold border-b">
+                                        <th className="px-6 py-4">{t('timeLabel')}</th>
+                                        <th className="px-6 py-4">{t('driverName')}</th>
+                                        <th className="px-6 py-4 text-center">{t('fuelAmountLiters')}</th>
+                                        <th className="px-6 py-4">{t('locationAddress')}</th>
+                                        <th className="px-6 py-4 text-center">{t('actions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {selectedCarHistory.fuel_logs.map((log) => (
+                                        <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4 text-sm font-mono whitespace-nowrap">
+                                                {new Date(log.timestamp).toLocaleString(isRtl ? 'ar-SA' : 'en-US')}
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-gray-700">{log.driver_name}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold text-sm">
+                                                    {log.amount} L
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-xs text-gray-500 max-w-xs truncate">
+                                                {log.address || t('unknown')}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button 
+                                                    onClick={() => setSelectedFuelLog(log)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition"
+                                                >
+                                                    <Camera size={20} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {selectedCarHistory.fuel_logs.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="px-6 py-12 text-center text-gray-400 italic">
+                                                {t('noLogsYet')}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Photo Preview Modal */}
             {selectedFuelLog && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-md">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] p-4 backdrop-blur-md">
                     <div className="bg-white rounded-3xl p-8 w-full max-w-4xl relative animate-zoom-in">
                         <button onClick={() => setSelectedFuelLog(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 p-2"><X size={32} /></button>
                         <h3 className="text-2xl font-bold mb-8 flex items-center gap-3 text-gray-800 border-b pb-4">
-                            <Droplets className="text-yellow-600" /> {t('fuelMonitoring')} — {t('details')}
+                            <Camera className="text-blue-600" /> {t('fuelIndicatorPhoto')} & {t('petrolMachinePhoto')}
                         </h3>
                         <div className="grid grid-cols-2 gap-12">
                             <div className="flex flex-col gap-4">
@@ -737,15 +797,9 @@ const FuelView = ({ t, isRtl }) => {
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-8 flex justify-between items-end">
-                            <div className="flex flex-col gap-1">
-                                <span className="text-sm text-gray-400">{t('locationAddress')}</span>
-                                <span className="font-bold text-gray-700">{selectedFuelLog.address || t('unknown')}</span>
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <span className="text-xs text-gray-400 font-mono">{new Date(selectedFuelLog.timestamp).toLocaleString()}</span>
-                                <span className="text-3xl font-black text-blue-600">{selectedFuelLog.amount} L</span>
-                            </div>
+                        <div className="mt-8 flex justify-between items-center text-sm text-gray-500">
+                             <span className="flex items-center gap-1"><MapPin size={16} /> {selectedFuelLog.address || 'N/A'}</span>
+                             <span className="font-bold text-blue-600 text-lg">{selectedFuelLog.amount} L</span>
                         </div>
                     </div>
                 </div>
