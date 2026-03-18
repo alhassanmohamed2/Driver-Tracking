@@ -314,6 +314,42 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                 }} />
             </div>
 
+            {/* ── Monthly Analytics ── */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 pb-8 mb-2">
+                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <Calendar size={16} className="text-indigo-500" /> {t('monthlyAnalytics')}
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                    {monthlyData.length > 0 ? (
+                        monthlyData.map((data, i) => (
+                            <div 
+                                key={i} 
+                                onClick={() => {
+                                    setViewMode('trips');
+                                    setStatusFilter('all');
+                                    const fromDate = `${data.year}-${String(data.month).padStart(2, '0')}-01`;
+                                    const lastDay = new Date(data.year, data.month, 0).getDate();
+                                    const toDate = `${data.year}-${String(data.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                                    setDateFrom(fromDate);
+                                    setDateTo(toDate);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-center transition-all hover:shadow-md hover:border-indigo-400 hover:bg-white cursor-pointer group active:scale-95"
+                            >
+                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold group-hover:text-indigo-400 transition-colors">{data.year}</p>
+                                <p className="text-sm font-bold text-slate-700 mt-0.5">{data.monthLabel}</p>
+                                <div className="mt-2 flex items-center justify-center gap-1">
+                                    <span className="text-lg font-black text-indigo-600">{data.count}</span>
+                                    <span className="text-[10px] text-slate-400 font-medium lowercase">{t('trips')}</span>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full py-8 text-center text-gray-400 italic text-sm">{t('noData')}</div>
+                    )}
+                </div>
+            </div>
+
             {/* ── Vehicle Status Dashboard ── */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 mb-6">
                 <div className="flex justify-between items-center mb-4">
@@ -588,29 +624,6 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                         <div className="h-[200px] flex items-center justify-center text-gray-400 italic text-sm text-center px-4">
                             ✅ {t('noInactiveDrivers')}
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* ── Monthly Analytics ── */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 pb-8 mb-8">
-                <h3 className="text-sm md:text-base font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <Calendar size={16} className="text-indigo-500" /> {t('monthlyAnalytics')}
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-                    {monthlyData.length > 0 ? (
-                        monthlyData.map((data, i) => (
-                            <div key={i} className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-center transition-all hover:shadow-sm hover:border-indigo-200 group">
-                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold group-hover:text-indigo-400 transition-colors">{data.year}</p>
-                                <p className="text-sm font-bold text-slate-700 mt-0.5">{data.monthLabel}</p>
-                                <div className="mt-2 flex items-center justify-center gap-1">
-                                    <span className="text-lg font-black text-indigo-600">{data.count}</span>
-                                    <span className="text-[10px] text-slate-400 font-medium lowercase">{t('trips')}</span>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="col-span-full py-8 text-center text-gray-400 italic text-sm">{t('noData')}</div>
                     )}
                 </div>
             </div>
