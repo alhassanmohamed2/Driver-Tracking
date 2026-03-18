@@ -29,6 +29,7 @@ class Car(Base):
     plate = Column(String(20), unique=True, index=True)
     model = Column(String(50))
     status = Column(Enum(CarStatus), default=CarStatus.ACTIVE)
+    fuel_capacity = Column(Float, nullable=True)
 
     drivers = relationship("User", back_populates="car")
 

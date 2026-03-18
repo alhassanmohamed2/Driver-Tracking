@@ -195,9 +195,8 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
 
             let totalTripTime = null;
             if (departureTime !== null) {
-                // Total trip time is the sum of loaded travel + waiting + returning.
-                // It should be fixed once tArriveFactory exists.
-                totalTripTime = (departureTime || 0) + (waitingTime || 0) + (returnTime || 0);
+                // Total trip time is the sum of loaded travel + returning (excluding waiting at warehouse).
+                totalTripTime = (departureTime || 0) + (returnTime || 0);
             }
 
             return {
@@ -414,32 +413,32 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                     return (
                     <div className="mt-4 border-t border-gray-100 pt-4">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-sm whitespace-nowrap">
+                            <table className="w-full text-start text-sm whitespace-nowrap">
                                 <thead>
                                     <tr className="bg-gray-50 text-gray-500">
-                                        <th className="py-3 px-4 rounded-l-lg font-medium">
+                                        <th className="py-3 px-4 rounded-l-lg font-medium text-start">
                                             {selectedStatusFilter === 'atFactory' ? t('carPlate') : t('tripId')}
                                         </th>
-                                        <th className="py-3 px-4 font-medium">
+                                        <th className="py-3 px-4 font-medium text-start">
                                             {selectedStatusFilter === 'atFactory' ? t('status') : t('driver')}
                                         </th>
                                         {selectedStatusFilter !== 'atFactory' && (
                                             <>
-                                                <th className="py-3 px-4 font-medium">{t('timeToWarehouse')}</th>
-                                                <th className="py-3 px-4 font-medium">{t('waitingTime')}</th>
-                                                <th className="py-3 px-4 font-medium">{t('timeToReturn')}</th>
+                                                <th className="py-3 px-4 font-medium text-start">{t('timeToWarehouse')}</th>
+                                                <th className="py-3 px-4 font-medium text-start">{t('waitingTime')}</th>
+                                                <th className="py-3 px-4 font-medium text-start">{t('timeToReturn')}</th>
                                             </>
                                         )}
                                         {selectedStatusFilter === 'atFactory' && (
                                             <>
-                                                <th className="py-3 px-4 font-medium">{t('arrivalTime')}</th>
-                                                <th className="py-3 px-4 font-medium text-blue-600 italic">{t('timeAtFactory')}</th>
+                                                <th className="py-3 px-4 font-medium text-start">{t('arrivalTime')}</th>
+                                                <th className="py-3 px-4 font-medium text-blue-600 italic text-start">{t('timeAtFactory')}</th>
                                             </>
                                         )}
                                         {selectedStatusFilter !== 'atFactory' && (
-                                            <th className="py-3 px-4 font-medium">{t('totalTripTime')}</th>
+                                            <th className="py-3 px-4 font-medium text-start">{t('totalTripTime')}</th>
                                         )}
-                                        <th className="py-3 px-4 rounded-r-lg font-medium text-right">{t('actions')}</th>
+                                        <th className="py-3 px-4 rounded-r-lg font-medium text-end">{t('actions')}</th>
                                     </tr>
                                         </thead>
                                         <tbody>
@@ -540,7 +539,7 @@ const DashboardView = ({ trips, drivers, cars, t, isRtl, formatSaudiDate, setVie
                                                     </td>
                                                 )}
 
-                                                <td className="py-3 px-4 text-right">
+                                                <td className="py-3 px-4 text-end">
                                                     {!isIdle && (
                                                     <button onClick={(e) => { e.stopPropagation(); setSelectedTrip(tr); setShowDetailsModal(true); }} className="text-blue-600 hover:text-blue-800 text-xs font-medium inline-flex items-center justify-end gap-1 relative z-10 px-2 py-1">
                                                         <Activity size={14} /> {t('viewDetails')}
@@ -665,7 +664,8 @@ const AdminDashboard = () => {
 
     // Car Form State
     const [showCarForm, setShowCarForm] = useState(false);
-    const [carForm, setCarForm] = useState({ plate: '', model: '' });
+    const [editingCarId, setEditingCarId] = useState(null);
+    const [carForm, setCarForm] = useState({ plate: '', model: '', fuelCapacity: '' });
 
     // Admin Password Form State
     const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -842,14 +842,27 @@ const AdminDashboard = () => {
         e.preventDefault();
         setMessage('');
         try {
-            await createCar(carForm.plate, carForm.model);
-            setMessage(t('carAdded'));
-            setCarForm({ plate: '', model: '' });
+            if (editingCarId) {
+                await updateCar(editingCarId, carForm.plate, carForm.model, carForm.fuelCapacity);
+                setMessage(t('carUpdated') || 'Car updated successfully!');
+            } else {
+                await createCar(carForm.plate, carForm.model, carForm.fuelCapacity);
+                setMessage(t('carAdded'));
+            }
             setShowCarForm(false);
+            setEditingCarId(null);
+            setCarForm({ plate: '', model: '', fuelCapacity: '' });
             fetchCars();
         } catch (err) {
-            setMessage(t('failedAddCar'));
+            console.error(err);
+            setMessage(editingCarId ? (t('failedSaveCar') || 'Failed to update car.') : t('failedAddCar'));
         }
+    };
+
+    const handleEditCarClick = (car) => {
+        setEditingCarId(car.id);
+        setCarForm({ plate: car.plate, model: car.model, fuelCapacity: car.fuel_capacity || '' });
+        setShowCarForm(true);
     };
 
     const handleDeleteCar = async (id) => {
@@ -1289,7 +1302,7 @@ const AdminDashboard = () => {
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative">
                             <button onClick={() => setShowCarForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20} /></button>
-                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Car className="w-5 h-5" /> {t('addCar')}</h3>
+                            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Car className="w-5 h-5" /> {editingCarId ? (t('editCar') || 'Edit Car') : t('addCar')}</h3>
                             <form onSubmit={handleSaveCar} className="flex flex-col gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('plateNumber')}</label>
@@ -1299,7 +1312,13 @@ const AdminDashboard = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('modelDescription')}</label>
                                     <input type="text" required className="w-full px-4 py-2 border rounded-lg" value={carForm.model} onChange={e => setCarForm({ ...carForm, model: e.target.value })} placeholder="Toyota Hilux 2024" />
                                 </div>
-                                <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">{t('saveCar')}</button>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('fuelCapacity') || 'Fuel Capacity (Liters)'}</label>
+                                    <input type="number" step="0.1" className="w-full px-4 py-2 border rounded-lg" value={carForm.fuelCapacity} onChange={e => setCarForm({ ...carForm, fuelCapacity: e.target.value })} placeholder="Ex: 80" />
+                                </div>
+                                <button type="submit" className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
+                                    {editingCarId ? t('saveChanges') : t('saveCar')}
+                                </button>
                             </form>
                         </div>
                     </div>
@@ -1678,6 +1697,7 @@ const AdminDashboard = () => {
                                     <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('idLabel')}</th>
                                     <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('plate')}</th>
                                     <th className="hidden sm:table-cell px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('model')}</th>
+                                    <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('fuelCapacity') || 'Fuel Capacity'}</th>
                                     <th className="px-3 md:px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase tracking-wider">{t('statusLabel')}</th>
                                     <th className="px-3 md:px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase tracking-wider">{t('actions')}</th>
                                 </tr>
@@ -1688,8 +1708,10 @@ const AdminDashboard = () => {
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-500">#{index + 1}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm font-bold text-gray-900">{car.plate}</td>
                                         <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-600">{car.model}</td>
+                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-sm text-gray-600">{car.fuel_capacity || '—'}</td>
                                         <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap"><span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">{car.status}</span></td>
-                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-end text-sm font-medium">
+                                        <td className="px-3 md:px-6 py-3 md:py-4 whitespace-nowrap text-end text-sm font-medium flex justify-end gap-2">
+                                            <button onClick={() => handleEditCarClick(car)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
                                             <button onClick={() => handleDeleteCar(car.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>

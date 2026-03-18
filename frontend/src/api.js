@@ -107,8 +107,13 @@ export const getCars = async () => {
     return response.data;
 };
 
-export const createCar = async (plate, model) => {
-    const response = await api.post('/admin/cars', { plate, model, status: 'active' });
+export const createCar = async (plate, model, fuelCapacity) => {
+    const response = await api.post('/admin/cars', { plate, model, fuel_capacity: fuelCapacity ? parseFloat(fuelCapacity) : null, status: 'active' });
+    return response.data;
+};
+
+export const updateCar = async (carId, plate, model, fuelCapacity) => {
+    const response = await api.put(`/admin/cars/${carId}`, { plate, model, fuel_capacity: fuelCapacity ? parseFloat(fuelCapacity) : null });
     return response.data;
 };
 

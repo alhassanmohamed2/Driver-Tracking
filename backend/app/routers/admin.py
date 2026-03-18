@@ -49,6 +49,26 @@ def create_car(car: schemas.CarCreate, current_user: models.User = Depends(get_c
     db.refresh(new_car)
     return new_car
 
+@router.put("/cars/{car_id}", response_model=schemas.Car)
+def update_car(car_id: int, car_update: schemas.CarUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
+    check_admin(current_user)
+    car = db.query(models.Car).filter(models.Car.id == car_id).first()
+    if not car:
+        raise HTTPException(status_code=404, detail="Car not found")
+    
+    if car_update.plate and car_update.plate != car.plate:
+        existing = db.query(models.Car).filter(models.Car.plate == car_update.plate).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Car plate already exists")
+    
+    update_data = car_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(car, key, value)
+    
+    db.commit()
+    db.refresh(car)
+    return car
+
 @router.delete("/cars/{car_id}")
 def delete_car(car_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     check_admin(current_user)

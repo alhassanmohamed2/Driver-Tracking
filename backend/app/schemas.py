@@ -7,6 +7,7 @@ class CarBase(BaseModel):
     plate: str
     model: str
     status: CarStatus = CarStatus.ACTIVE
+    fuel_capacity: Optional[float] = None
 
 class CarCreate(CarBase):
     pass
@@ -15,6 +16,7 @@ class CarUpdate(BaseModel):
     plate: Optional[str] = None
     model: Optional[str] = None
     status: Optional[CarStatus] = None
+    fuel_capacity: Optional[float] = None
 
 class Car(CarBase):
     id: int

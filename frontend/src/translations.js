@@ -148,6 +148,7 @@ export const translations = {
         failedSaveDriver: "Failed to save driver. Username might be taken.",
         failedDeleteDriver: "Failed to delete driver.",
         failedAddCar: "Failed to add car. Plate might already exist.",
+        failedSaveCar: "Failed to save car. Plate might already exist.",
         failedDeleteCar: "Failed to delete car. It might be assigned to a driver.",
         failedChangePassword: "Failed to change password.",
         failedUpdateSettings: "Failed to update settings.",
@@ -162,6 +163,8 @@ export const translations = {
         removeEvent: "Remove Event",
         stateLabel: "Event Type",
         viewOnMap: "View on Map",
+        fuelCapacity: "Fuel Capacity (Liters)",
+        editCar: "Edit Car",
 
         // ─── Analytics Dashboard ───
         dashboard: "Dashboard",
@@ -371,6 +374,7 @@ export const translations = {
         failedSaveDriver: "فشل حفظ السائق. قد يكون اسم المستخدم مأخوذاً.",
         failedDeleteDriver: "فشل حذف السائق.",
         failedAddCar: "فشل إضافة السيارة. قد تكون اللوحة موجودة.",
+        failedSaveCar: "فشل حفظ السيارة. قد تكون اللوحة موجودة.",
         failedDeleteCar: "فشل حذف السيارة. قد تكون مخصصة لسائق.",
         failedChangePassword: "فشل تغيير كلمة المرور.",
         failedUpdateSettings: "فشل تحديث الإعدادات.",
@@ -385,6 +389,8 @@ export const translations = {
         removeEvent: "حذف الحدث",
         stateLabel: "نوع الحدث",
         viewOnMap: "عرض على الخريطة",
+        fuelCapacity: "سعة خزان الوقود (لتر)",
+        editCar: "تعديل السيارة",
 
         // ─── Analytics Dashboard ───
         dashboard: "لوحة المعلومات",
@@ -524,6 +530,9 @@ export const translations = {
         // Misc
         pinnedLocation: "پین کردہ مقام",
         loadingTripState: "سفر کی حالت لوڈ ہو رہی ہے...",
+        fuelCapacity: "فیول ٹینک کی گنجائش (لیٹر)",
+        editCar: "گاڑی میں ترمیم کریں",
+        failedSaveCar: "گاڑی محفوظ کرنے میں ناکام۔ پلیٹ نمبر پہلے سے موجود ہو سکتا ہے۔",
     },
     hi: {
         // Header
