@@ -161,6 +161,7 @@ export const translations = {
 
         // ─── Analytics Dashboard ───
         dashboard: "Dashboard",
+        monthlyAnalytics: "Monthly Analytics",
         totalTrips: "Total Trips",
         activeTrips: "Active Trips",
         completedTrips: "Completed Trips",
@@ -379,6 +380,7 @@ export const translations = {
 
         // ─── Analytics Dashboard ───
         dashboard: "لوحة المعلومات",
+        monthlyAnalytics: "التحليلات الشهرية",
         totalTrips: "إجمالي الرحلات",
         activeTrips: "الرحلات النشطة",
         completedTrips: "الرحلات المكتملة",
