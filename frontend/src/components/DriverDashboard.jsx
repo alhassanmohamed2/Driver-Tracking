@@ -127,9 +127,11 @@ const DriverDashboard = () => {
             const position = await getCurrentPosition();
             const { latitude, longitude } = position.coords;
 
-            // Send state immediately with coordinates — don't wait for geocoding
-            const coordsAddress = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-            await logTripState(activeTrip.id, state, latitude, longitude, coordsAddress);
+            // Try to resolve address (3s timeout built into getAddressFromCoords)
+            // Falls back to coordinates automatically if geocoding is slow
+            const address = await getAddressFromCoords(latitude, longitude);
+
+            await logTripState(activeTrip.id, state, latitude, longitude, address);
 
             // Update UI state immediately
             if (state === 'EXIT_FACTORY') setNextState('ARRIVE_WAREHOUSE');
