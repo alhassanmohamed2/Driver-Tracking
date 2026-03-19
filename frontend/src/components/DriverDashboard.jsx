@@ -73,6 +73,9 @@ const DriverDashboard = () => {
             }
         } catch (err) {
             console.error(err);
+            // On error (like 404), reset state to allow starting new trip
+            setActiveTrip(null);
+            setNextState(null);
         }
     };
 
@@ -81,7 +84,7 @@ const DriverDashboard = () => {
         try {
             const trip = await startTrip();
             setActiveTrip(trip);
-            setNextState('Exit Factory');
+            setNextState('EXIT_FACTORY');
         } catch (err) {
             console.error(err);
             setError('Failed to start trip. Please try again.');
