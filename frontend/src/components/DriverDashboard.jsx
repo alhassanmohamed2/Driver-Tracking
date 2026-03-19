@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { startTrip, logTripState, getActiveTrip, getSettings, logFuelRefill } from '../api';
+import { startTrip, logTripState, getActiveTrip, getSettings, logFuelRefill, updateLogAddress } from '../api';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, CheckCircle, LogOut, Truck, Home, PlayCircle, RotateCcw, History, Activity, Languages, Droplets, Camera, X } from 'lucide-react';
 import DriverHistory from './DriverHistory';
@@ -106,17 +106,13 @@ const DriverDashboard = () => {
 
     const getAddressFromCoords = async (lat, lon) => {
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000);
             const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-                { signal: controller.signal }
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
             );
-            clearTimeout(timeoutId);
             const data = await response.json();
-            return data.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+            return data.display_name || null;
         } catch (err) {
-            return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+            return null;
         }
     };
 
@@ -127,13 +123,10 @@ const DriverDashboard = () => {
             const position = await getCurrentPosition();
             const { latitude, longitude } = position.coords;
 
-            // Try to resolve address (3s timeout built into getAddressFromCoords)
-            // Falls back to coordinates automatically if geocoding is slow
-            const address = await getAddressFromCoords(latitude, longitude);
+            // Step 1: Log state INSTANTLY with coordinates (driver is NOT blocked)
+            const newLog = await logTripState(activeTrip.id, state, latitude, longitude, `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
 
-            await logTripState(activeTrip.id, state, latitude, longitude, address);
-
-            // Update UI state immediately
+            // Step 2: Update UI state immediately — driver can proceed
             if (state === 'EXIT_FACTORY') setNextState('ARRIVE_WAREHOUSE');
             else if (state === 'ARRIVE_WAREHOUSE') setNextState('EXIT_WAREHOUSE');
             else if (state === 'EXIT_WAREHOUSE') setNextState('choice');
@@ -142,7 +135,23 @@ const DriverDashboard = () => {
                 setActiveTrip(null);
             }
 
-            // Refresh timeline in background (non-blocking)
+            setLoading(false);
+
+            // Step 3: Resolve address in background (no timeout — always completes)
+            // Then PATCH the log with the real address
+            const tripId = activeTrip?.id || newLog?.trip_id;
+            const logId = newLog?.id;
+            if (tripId && logId) {
+                getAddressFromCoords(latitude, longitude).then(address => {
+                    if (address) {
+                        updateLogAddress(tripId, logId, address).then(() => {
+                            checkActiveTrip(); // Refresh timeline with real address
+                        }).catch(err => console.error('Address patch failed:', err));
+                    }
+                });
+            }
+
+            // Refresh timeline immediately (will show coords, then update with address)
             checkActiveTrip();
 
         } catch (err) {

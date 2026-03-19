@@ -86,6 +86,44 @@ def add_trip_log(
     db.refresh(new_log)
     return new_log
 
+@router.patch("/{trip_id}/logs/{log_id}/address")
+def update_log_address(
+    trip_id: int,
+    log_id: int,
+    data: dict,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """Update address of a trip log (used for async geocoding)"""
+    trip = db.query(models.Trip).filter(models.Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    if trip.driver_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    log = db.query(models.TripLog).filter(
+        models.TripLog.id == log_id,
+        models.TripLog.trip_id == trip_id
+    ).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+
+    address = data.get("address", "")
+    if address:
+        log.address = address
+        # Also update the flattened trip columns
+        if log.state == models.TripState.EXIT_FACTORY:
+            trip.exit_factory_address = address
+        elif log.state == models.TripState.ARRIVE_WAREHOUSE:
+            trip.arrive_warehouse_address = address
+        elif log.state == models.TripState.EXIT_WAREHOUSE:
+            trip.exit_warehouse_address = address
+        elif log.state == models.TripState.ARRIVE_FACTORY:
+            trip.arrive_factory_address = address
+        db.commit()
+
+    return {"status": "ok"}
+
 @router.get("/history", response_model=List[schemas.Trip])
 def get_trip_history(
     month: int = None,

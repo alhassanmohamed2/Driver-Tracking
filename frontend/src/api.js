@@ -80,6 +80,11 @@ export const logFuelRefill = async (tripId, data) => {
     return response.data;
 };
 
+export const updateLogAddress = async (tripId, logId, address) => {
+    const response = await api.patch(`/trips/${tripId}/logs/${logId}/address`, { address });
+    return response.data;
+};
+
 export const getTrips = async () => {
     const response = await api.get('/admin/trips');
     return response.data;
