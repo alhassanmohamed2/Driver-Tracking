@@ -62,7 +62,14 @@ const DriverDashboard = () => {
                     setNextState('choice');
                 } else if (lastLog.state === 'ARRIVE_FACTORY') {
                     setNextState('COMPLETED');
+                } else {
+                    // Fallback for any unrecognized state
+                    setNextState('EXIT_FACTORY');
                 }
+            } else {
+                // No active trip — reset state
+                setActiveTrip(null);
+                setNextState(null);
             }
         } catch (err) {
             console.error(err);
