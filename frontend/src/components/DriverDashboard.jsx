@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { startTrip, logTripState, getActiveTrip, getSettings, logFuelRefill } from '../api';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, CheckCircle, LogOut, Truck, Home, PlayCircle, Loader, History, Activity, Languages, Droplets, Camera, Fuel, X } from 'lucide-react';
+import { MapPin, Navigation, CheckCircle, LogOut, Truck, Home, PlayCircle, RotateCcw, History, Activity, Languages, Droplets, Camera, X } from 'lucide-react';
 import DriverHistory from './DriverHistory';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -16,6 +16,8 @@ const DriverDashboard = () => {
     const [settings, setSettings] = useState({ companyName: '', logoUrl: '' });
     const [showFuelModal, setShowFuelModal] = useState(false);
     const [fuelForm, setFuelForm] = useState({ amount: '', indicatorImg: null, machineImg: null });
+    const [fuelLoading, setFuelLoading] = useState(false);
+    const [fuelError, setFuelError] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -44,7 +46,6 @@ const DriverDashboard = () => {
     };
 
     const checkActiveTrip = async () => {
-        // ... existing checkActiveTrip logic
         try {
             const trip = await getActiveTrip();
             if (trip) {
@@ -68,8 +69,6 @@ const DriverDashboard = () => {
         }
     };
 
-    // ... existing handleStartTrip, getCurrentPosition, getAddressFromCoords, handleLogState, handleChoice, handleLogout
-
     const handleStartTrip = async () => {
         setLoading(true);
         try {
@@ -92,20 +91,25 @@ const DriverDashboard = () => {
             }
             navigator.geolocation.getCurrentPosition(resolve, reject, {
                 enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
+                timeout: 5000,
+                maximumAge: 5000
             });
         });
     };
 
     const getAddressFromCoords = async (lat, lon) => {
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+                { signal: controller.signal }
+            );
+            clearTimeout(timeoutId);
             const data = await response.json();
-            return data.display_name || "Unknown Location";
+            return data.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         } catch (err) {
-            console.error("Geocoding failed", err);
-            return `Lat: ${lat}, Lon: ${lon}`;
+            return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         }
     };
 
@@ -115,10 +119,12 @@ const DriverDashboard = () => {
         try {
             const position = await getCurrentPosition();
             const { latitude, longitude } = position.coords;
-            const address = await getAddressFromCoords(latitude, longitude);
 
-            await logTripState(activeTrip.id, state, latitude, longitude, address);
+            // Send state immediately with coordinates — don't wait for geocoding
+            const coordsAddress = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+            await logTripState(activeTrip.id, state, latitude, longitude, coordsAddress);
 
+            // Update UI state immediately
             if (state === 'EXIT_FACTORY') setNextState('ARRIVE_WAREHOUSE');
             else if (state === 'ARRIVE_WAREHOUSE') setNextState('EXIT_WAREHOUSE');
             else if (state === 'EXIT_WAREHOUSE') setNextState('choice');
@@ -127,16 +133,17 @@ const DriverDashboard = () => {
                 setActiveTrip(null);
             }
 
-            checkActiveTrip(); // Refresh logs for timeline
+            // Refresh timeline in background (non-blocking)
+            checkActiveTrip();
 
         } catch (err) {
             console.error(err);
             if (err && err.code === 1) {
-                setError('Location permission denied. Please enable GPS.');
+                setError(t('locationDenied') || 'Location permission denied. Please enable GPS.');
             } else if (err && err.code === 2) {
-                setError('Location unavailable. Check GPS signal.');
+                setError(t('locationUnavailable') || 'Location unavailable. Check GPS signal.');
             } else {
-                setError('Failed to log state. Ensure GPS is enabled.');
+                setError(t('failedToLogState') || 'Failed to log state. Ensure GPS is enabled.');
             }
         } finally {
             setLoading(false);
@@ -159,12 +166,17 @@ const DriverDashboard = () => {
     const handleFuelSubmit = async (e) => {
         e.preventDefault();
         if (!fuelForm.amount || !fuelForm.indicatorImg || !fuelForm.machineImg) {
-            setError(t('fuelRequiredFields'));
+            setFuelError(t('fuelRequiredFields'));
             return;
         }
 
-        setLoading(true);
-        setError('');
+        if (!activeTrip) {
+            setFuelError(t('noActiveTripForFuel') || 'No active trip. Start a trip first to log fuel.');
+            return;
+        }
+
+        setFuelLoading(true);
+        setFuelError('');
         try {
             const position = await getCurrentPosition();
             const { latitude, longitude } = position.coords;
@@ -181,17 +193,17 @@ const DriverDashboard = () => {
 
             setShowFuelModal(false);
             setFuelForm({ amount: '', indicatorImg: null, machineImg: null });
+            setFuelError('');
             alert(t('fuelLoggedSuccess'));
         } catch (err) {
             console.error(err);
-            setError(t('failedLogFuel'));
+            setFuelError(t('failedLogFuel'));
         } finally {
-            setLoading(false);
+            setFuelLoading(false);
         }
     };
 
     const renderActionButtons = () => {
-        // ... (existing renderActionButtons logic)
         if (!activeTrip) {
             return (
                 <button
@@ -199,7 +211,7 @@ const DriverDashboard = () => {
                     disabled={loading}
                     className="w-full py-6 bg-blue-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {loading ? <Loader className="animate-spin" /> : <PlayCircle size={28} />}
+                    {loading ? <RotateCcw className="animate-spin" /> : <PlayCircle size={28} />}
                     {loading ? t('starting') : t('startNewTrip')}
                 </button>
             );
@@ -241,36 +253,26 @@ const DriverDashboard = () => {
                 case 'ARRIVE_WAREHOUSE': return { label: t('logArriveWarehouse'), icon: <MapPin />, color: 'bg-purple-600' };
                 case 'EXIT_WAREHOUSE': return { label: t('logExitWarehouse'), icon: <Truck />, color: 'bg-orange-600' };
                 case 'ARRIVE_FACTORY': return { label: t('logArriveFactoryEnd'), icon: <Home />, color: 'bg-green-600' };
-                default: return { label: t('loadingTripState'), icon: <Loader className="animate-spin" />, color: 'bg-gray-400' };
+                default: return { label: t('loadingTripState'), icon: <RotateCcw className="animate-spin" />, color: 'bg-gray-400' };
             }
         };
 
         const config = getButtonConfig();
 
         return (
-            <div className="flex flex-col gap-4 w-full">
-                <button
-                    onClick={() => handleLogState(nextState)}
-                    disabled={loading || !nextState}
-                    className={`w-full py-8 ${config.color} text-white rounded-xl font-bold text-2xl shadow-xl hover:opacity-90 transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                    {loading ? <Loader className="animate-spin w-8 h-8" /> : <div className="scale-125">{config.icon}</div>}
-                    <span>{loading ? t('processing') : config.label}</span>
-                </button>
-
-                <button
-                    onClick={() => setShowFuelModal(true)}
-                    disabled={loading}
-                    className="w-full py-4 bg-yellow-500 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-yellow-600 transition flex items-center justify-center gap-3"
-                >
-                    <Droplets size={24} /> {t('logFuelRefill')}
-                </button>
-            </div>
+            <button
+                onClick={() => handleLogState(nextState)}
+                disabled={loading || !nextState}
+                className={`w-full py-8 ${config.color} text-white rounded-xl font-bold text-2xl shadow-xl hover:opacity-90 transition flex flex-col items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+                {loading ? <RotateCcw className="animate-spin w-8 h-8" /> : <div className="scale-125">{config.icon}</div>}
+                <span>{loading ? t('processing') : config.label}</span>
+            </button>
         );
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50">
+        <div className="flex flex-col min-h-screen bg-slate-50 relative">
             <header className="bg-blue-700 text-white p-4 shadow-md z-10">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
@@ -324,7 +326,7 @@ const DriverDashboard = () => {
             </header>
 
             {currentTab === 'active' ? (
-                <main className="flex-1 p-6 flex flex-col items-center justify-center gap-6 pb-20 overflow-auto">
+                <main className="flex-1 p-6 flex flex-col items-center justify-center gap-6 pb-24 overflow-auto">
                     {error && (
                         <div className="p-4 rounded-lg w-full max-w-md text-center bg-red-100 text-red-700 border border-red-200 shadow-sm">
                             {error}
@@ -384,76 +386,98 @@ const DriverDashboard = () => {
 
                         {renderActionButtons()}
                     </div>
-
-                    {/* Fuel Refill Modal */}
-                    {showFuelModal && (
-                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative animate-zoom-in">
-                                <button onClick={() => setShowFuelModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={24} /></button>
-                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-yellow-600">
-                                    <Droplets /> {t('logFuelRefill')}
-                                </h3>
-                                <form onSubmit={handleFuelSubmit} className="flex flex-col gap-6">
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">{t('fuelAmountLiters')}</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.1" 
-                                            className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-yellow-500 focus:outline-none text-lg font-bold" 
-                                            value={fuelForm.amount} 
-                                            onChange={e => setFuelForm({ ...fuelForm, amount: e.target.value })} 
-                                            placeholder="Ex: 450"
-                                            required 
-                                        />
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-xs font-bold text-gray-500 uppercase">{t('fuelIndicatorPhoto')}</label>
-                                            <div 
-                                                className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition overflow-hidden relative ${fuelForm.indicatorImg ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-yellow-400'}`}
-                                                onClick={() => document.getElementById('indicator-input').click()}
-                                            >
-                                                {fuelForm.indicatorImg ? (
-                                                    <img src={URL.createObjectURL(fuelForm.indicatorImg)} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <><Camera className="text-slate-400" size={32} /><span className="text-[10px] text-slate-400 text-center px-2">{t('uploadPhoto')}</span></>
-                                                )}
-                                                <input id="indicator-input" type="file" accept="image/*" capture="environment" hidden onChange={e => setFuelForm({ ...fuelForm, indicatorImg: e.target.files[0] })} />
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="flex flex-col gap-2">
-                                            <label className="text-xs font-bold text-gray-500 uppercase">{t('petrolMachinePhoto')}</label>
-                                            <div 
-                                                className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition overflow-hidden relative ${fuelForm.machineImg ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-yellow-400'}`}
-                                                onClick={() => document.getElementById('machine-input').click()}
-                                            >
-                                                {fuelForm.machineImg ? (
-                                                    <img src={URL.createObjectURL(fuelForm.machineImg)} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <><Camera className="text-slate-400" size={32} /><span className="text-[10px] text-slate-400 text-center px-2">{t('uploadPhoto')}</span></>
-                                                )}
-                                                <input id="machine-input" type="file" accept="image/*" capture="environment" hidden onChange={e => setFuelForm({ ...fuelForm, machineImg: e.target.files[0] })} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <button 
-                                        type="submit" 
-                                        disabled={loading}
-                                        className="w-full py-4 bg-yellow-600 text-white font-bold rounded-xl shadow-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
-                                    >
-                                        {loading ? <Loader className="animate-spin" /> : <CheckCircle />}
-                                        {loading ? t('uploading') : t('submitRefill')}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
                 </main>
             ) : (
                 <DriverHistory />
+            )}
+
+            {/* Floating Fuel Button — always visible, bottom-right */}
+            <button
+                onClick={() => { setShowFuelModal(true); setFuelError(''); }}
+                className="fixed bottom-6 right-6 w-16 h-16 bg-yellow-500 text-white rounded-full shadow-2xl hover:bg-yellow-600 active:scale-95 transition-all flex items-center justify-center z-40"
+                title={t('logFuelRefill')}
+            >
+                <Droplets size={28} />
+            </button>
+
+            {/* Fuel Refill Modal */}
+            {showFuelModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative animate-zoom-in">
+                        <button onClick={() => { setShowFuelModal(false); setFuelError(''); }} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={24} /></button>
+                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-yellow-600">
+                            <Droplets /> {t('logFuelRefill')}
+                        </h3>
+
+                        {!activeTrip && (
+                            <div className="mb-4 p-3 bg-yellow-50 text-yellow-800 text-sm rounded-lg border border-yellow-200">
+                                {t('noActiveTripForFuel') || 'You need an active trip to log a fuel refill. Please start a trip first.'}
+                            </div>
+                        )}
+
+                        {fuelError && (
+                            <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg border border-red-200">
+                                {fuelError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleFuelSubmit} className="flex flex-col gap-6">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-gray-700 uppercase tracking-wide">{t('fuelAmountLiters')}</label>
+                                <input 
+                                    type="number" 
+                                    step="0.1" 
+                                    className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-yellow-500 focus:outline-none text-lg font-bold" 
+                                    value={fuelForm.amount} 
+                                    onChange={e => setFuelForm({ ...fuelForm, amount: e.target.value })} 
+                                    placeholder="Ex: 450"
+                                    required 
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">{t('fuelIndicatorPhoto')}</label>
+                                    <div 
+                                        className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition overflow-hidden relative ${fuelForm.indicatorImg ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-yellow-400'}`}
+                                        onClick={() => document.getElementById('indicator-input').click()}
+                                    >
+                                        {fuelForm.indicatorImg ? (
+                                            <img src={URL.createObjectURL(fuelForm.indicatorImg)} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <><Camera className="text-slate-400" size={32} /><span className="text-[10px] text-slate-400 text-center px-2">{t('uploadPhoto')}</span></>
+                                        )}
+                                        <input id="indicator-input" type="file" accept="image/*" capture="environment" hidden onChange={e => setFuelForm({ ...fuelForm, indicatorImg: e.target.files[0] })} />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">{t('petrolMachinePhoto')}</label>
+                                    <div 
+                                        className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 transition overflow-hidden relative ${fuelForm.machineImg ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-yellow-400'}`}
+                                        onClick={() => document.getElementById('machine-input').click()}
+                                    >
+                                        {fuelForm.machineImg ? (
+                                            <img src={URL.createObjectURL(fuelForm.machineImg)} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <><Camera className="text-slate-400" size={32} /><span className="text-[10px] text-slate-400 text-center px-2">{t('uploadPhoto')}</span></>
+                                        )}
+                                        <input id="machine-input" type="file" accept="image/*" capture="environment" hidden onChange={e => setFuelForm({ ...fuelForm, machineImg: e.target.files[0] })} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                disabled={fuelLoading || !activeTrip}
+                                className="w-full py-4 bg-yellow-600 text-white font-bold rounded-xl shadow-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                            >
+                                {fuelLoading ? <RotateCcw className="animate-spin" /> : <CheckCircle />}
+                                {fuelLoading ? t('uploading') : t('submitRefill')}
+                            </button>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );
